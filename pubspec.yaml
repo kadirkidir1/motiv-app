@@ -19,6 +19,7 @@ dependencies:
   url_launcher: ^6.2.4
   google_sign_in: ^6.2.1
   app_links: ^6.3.2
+  purchases_flutter: ^8.2.3
 
 dev_dependencies:
   flutter_test:

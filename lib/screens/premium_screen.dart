@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:purchases_flutter/purchases_flutter.dart';
+import '../services/revenue_cat_service.dart';
 
 class PremiumScreen extends StatelessWidget {
   final String languageCode;
@@ -243,103 +244,72 @@ class PremiumScreen extends StatelessWidget {
   void _handlePurchase(BuildContext context, bool isTurkish) async {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Row(
-          children: [
-            Icon(Icons.info_outline, color: Colors.blue.shade600),
-            const SizedBox(width: 8),
-            Text(isTurkish ? 'Test Modu' : 'Test Mode'),
-          ],
-        ),
-        content: Text(
-          isTurkish
-              ? 'Google Play Console onayı bekleniyor.\n\nTest için premium üyeliği aktif etmek ister misin?'
-              : 'Waiting for Google Play Console approval.\n\nWould you like to activate premium for testing?',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(isTurkish ? 'İptal' : 'Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              Navigator.pop(context);
-              await _activateTestPremium(context, isTurkish);
-            },
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.amber.shade700),
-            child: Text(isTurkish ? 'Aktif Et' : 'Activate', style: const TextStyle(color: Colors.white)),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Future<void> _activateTestPremium(BuildContext context, bool isTurkish) async {
-    showDialog(
-      context: context,
       barrierDismissible: false,
       builder: (context) => const Center(child: CircularProgressIndicator()),
     );
 
     try {
-      final userId = await _getUserId();
-      if (userId == null) throw Exception('User not logged in');
-
-      await _updatePremiumStatus(userId);
+      final packages = await RevenueCatService.getAvailablePackages();
       
       if (!context.mounted) return;
       Navigator.pop(context);
 
+      if (packages.isEmpty) {
+        _showError(context, isTurkish, isTurkish ? 'Paketler yüklenemedi' : 'Failed to load packages');
+        return;
+      }
+
+      final yearlyPackage = packages.firstWhere(
+        (p) => p.storeProduct.identifier == 'motiv_premium_yearly',
+        orElse: () => packages.first,
+      );
+
       showDialog(
         context: context,
-        builder: (context) => AlertDialog(
-          title: Row(
-            children: [
-              Icon(Icons.check_circle, color: Colors.green.shade600),
-              const SizedBox(width: 8),
-              Text(isTurkish ? 'Başarılı!' : 'Success!'),
+        barrierDismissible: false,
+        builder: (context) => const Center(child: CircularProgressIndicator()),
+      );
+
+      final success = await RevenueCatService.purchasePackage(yearlyPackage);
+      
+      if (!context.mounted) return;
+      Navigator.pop(context);
+
+      if (success) {
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: Row(
+              children: [
+                Icon(Icons.check_circle, color: Colors.green.shade600),
+                const SizedBox(width: 8),
+                Text(isTurkish ? 'Başarılı!' : 'Success!'),
+              ],
+            ),
+            content: Text(
+              isTurkish
+                  ? 'Premium üyeliğiniz aktif edildi!'
+                  : 'Your premium membership has been activated!',
+            ),
+            actions: [
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  Navigator.pop(context);
+                },
+                child: Text(isTurkish ? 'Tamam' : 'OK'),
+              ),
             ],
           ),
-          content: Text(
-            isTurkish
-                ? 'Test premium üyeliği 1 yıl için aktif edildi!'
-                : 'Test premium membership activated for 1 year!',
-          ),
-          actions: [
-            ElevatedButton(
-              onPressed: () {
-                Navigator.pop(context);
-                Navigator.pop(context);
-              },
-              child: Text(isTurkish ? 'Tamam' : 'OK'),
-            ),
-          ],
-        ),
-      );
+        );
+      } else {
+        _showError(context, isTurkish, isTurkish ? 'Satın alma iptal edildi' : 'Purchase cancelled');
+      }
     } catch (e) {
       if (!context.mounted) return;
       Navigator.pop(context);
       _showError(context, isTurkish, e.toString());
     }
-  }
-
-  Future<String?> _getUserId() async {
-    try {
-      final supabase = Supabase.instance.client;
-      return supabase.auth.currentUser?.id;
-    } catch (e) {
-      return null;
-    }
-  }
-
-  Future<void> _updatePremiumStatus(String userId) async {
-    final supabase = Supabase.instance.client;
-    final expiryDate = DateTime.now().add(const Duration(days: 365));
-
-    await supabase.from('profiles').update({
-      'subscription_type': 'premium',
-      'premium_until': expiryDate.toIso8601String(),
-    }).eq('id', userId);
   }
 
   void _showError(BuildContext context, bool isTurkish, String message) {

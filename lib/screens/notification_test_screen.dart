@@ -97,6 +97,68 @@ class _NotificationTestScreenState extends State<NotificationTestScreen> {
               ),
             ),
             const SizedBox(height: 16),
+            ElevatedButton.icon(
+              onPressed: () async {
+                final messenger = ScaffoldMessenger.of(context);
+                try {
+                  await NotificationService.scheduleTestNotification();
+                  if (!mounted) return;
+                  messenger.showSnackBar(
+                    const SnackBar(
+                      content: Text('15 saniye sonra bildirim gelecek!'),
+                      backgroundColor: Colors.green,
+                    ),
+                  );
+                } catch (e) {
+                  if (!mounted) return;
+                  messenger.showSnackBar(
+                    SnackBar(
+                      content: Text('Hata: $e'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
+              },
+              icon: const Icon(Icons.timer),
+              label: const Text('15 Saniye Sonra Bildirim'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.purple,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.all(16),
+              ),
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton.icon(
+              onPressed: () async {
+                final messenger = ScaffoldMessenger.of(context);
+                try {
+                  await NotificationService.showInstantNotification();
+                  if (!mounted) return;
+                  messenger.showSnackBar(
+                    const SnackBar(
+                      content: Text('Anlık bildirim gönderildi!'),
+                      backgroundColor: Colors.green,
+                    ),
+                  );
+                } catch (e) {
+                  if (!mounted) return;
+                  messenger.showSnackBar(
+                    SnackBar(
+                      content: Text('Hata: $e'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
+              },
+              icon: const Icon(Icons.flash_on),
+              label: const Text('HEMEN Bildirim Gönder'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.all(16),
+              ),
+            ),
+            const SizedBox(height: 16),
             const Card(
               color: Color(0xFFE3F2FD),
               child: Padding(
@@ -106,9 +168,9 @@ class _NotificationTestScreenState extends State<NotificationTestScreen> {
                     Icon(Icons.info_outline, color: Colors.blue, size: 32),
                     SizedBox(height: 8),
                     Text(
-                      'Bildirimler uygulama açıldığında otomatik kontrol edilir.',
+                      'Logları görmek için: adb logcat | grep flutter',
                       textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: 14),
+                      style: TextStyle(fontSize: 12),
                     ),
                   ],
                 ),

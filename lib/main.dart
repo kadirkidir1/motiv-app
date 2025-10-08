@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'screens/splash_screen.dart';
 import 'services/notification_service.dart';
 import 'services/deep_link_service.dart';
+import 'services/revenue_cat_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -18,6 +19,7 @@ void main() async {
 
   await NotificationService.initialize();
   await NotificationService.rescheduleAllNotifications();
+  await RevenueCatService.initialize();
   await DeepLinkService.initialize();
 
   runApp(const MotivApp());

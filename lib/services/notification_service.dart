@@ -368,6 +368,37 @@ class NotificationService {
     }
   }
 
+  static Future<void> showInstantNotification() async {
+    try {
+      await _checkInitialization();
+
+      await _notifications.show(
+        999,
+        'Anlık Test 🚀',
+        'Bu bildirim hemen gösterildi!',
+        const NotificationDetails(
+          android: AndroidNotificationDetails(
+            'task_reminder',
+            'Görev Hatırlatıcısı',
+            channelDescription: 'Test bildirimleri',
+            importance: Importance.max,
+            priority: Priority.high,
+            enableVibration: true,
+            playSound: true,
+          ),
+          iOS: DarwinNotificationDetails(
+            sound: 'default',
+            presentAlert: true,
+            presentBadge: true,
+            presentSound: true,
+          ),
+        ),
+      );
+    } catch (e) {
+      rethrow;
+    }
+  }
+
   static Future<void> scheduleTestNotification() async {
     try {
       await _checkInitialization();
@@ -375,9 +406,9 @@ class NotificationService {
       if (Platform.isAndroid) {
         const platform = MethodChannel('com.motivapp.motivapp/alarm');
         await platform.invokeMethod('scheduleAlarm', {
-          'delaySeconds': 10,
+          'delaySeconds': 15,
           'title': 'Native Test 🚀',
-          'body': '10 saniye sonra native AlarmManager ile gelen bildirim!',
+          'body': '15 saniye sonra native AlarmManager ile gelen bildirim!',
         });
       } else {
         final scheduledDate = DateTime.now().add(const Duration(seconds: 10));

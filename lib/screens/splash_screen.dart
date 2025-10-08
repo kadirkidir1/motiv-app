@@ -40,12 +40,10 @@ class _SplashScreenState extends State<SplashScreen> {
     await Future.delayed(const Duration(seconds: 2));
 
     if (mounted) {
-      // Check if user should be remembered
-      final shouldRemember = await AuthService.shouldRememberUser();
       final isSignedIn = AuthService.isSignedIn();
 
       if (mounted) {
-        if (isSignedIn && shouldRemember) {
+        if (isSignedIn) {
           // User is signed in and should be remembered
           developer.log('User is signed in, syncing from cloud...', name: 'SplashScreen');
           

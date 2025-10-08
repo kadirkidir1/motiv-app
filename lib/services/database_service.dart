@@ -117,8 +117,13 @@ class DatabaseService {
 
   static Future<void> deleteMotivation(String id) async {
     final db = await database;
+    // Önce motivasyona ait notları sil
+    await db.delete('daily_notes', where: 'motivationId = ?', whereArgs: [id]);
+    // Sonra motivasyonu sil
     await db.delete('motivations', where: 'id = ?', whereArgs: [id]);
     _deleteMotivationFromCloud(id);
+    // Cloud'dan notları da sil
+    _deleteMotivationNotesFromCloud(id);
   }
 
   static Future<void> clearAllMotivations() async {
@@ -399,6 +404,21 @@ class DatabaseService {
     }
   }
 
+  static Future<void> _deleteMotivationNotesFromCloud(String motivationId) async {
+    final user = _supabase.auth.currentUser;
+    if (user == null) return;
+
+    try {
+      await _supabase
+          .from('daily_notes')
+          .delete()
+          .eq('motivation_id', motivationId)
+          .eq('user_id', user.id);
+    } catch (e) {
+      developer.log('Cloud delete notes error: $e', name: 'DatabaseService');
+    }
+  }
+
   // Sync from Cloud to Local
   static Future<void> syncFromCloud() async {
     final user = _supabase.auth.currentUser;
@@ -411,6 +431,11 @@ class DatabaseService {
 
     try {
       final db = await database;
+      
+      // Local verileri temizle (sadece cloud'dan gelecek)
+      await db.delete('motivations');
+      await db.delete('daily_tasks');
+      await db.delete('daily_notes');
       
       // Sync motivations
       developer.log('📥 Fetching motivations from cloud...', name: 'DatabaseService');
