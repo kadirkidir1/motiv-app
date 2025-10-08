@@ -1,0 +1,36 @@
+{
+  "project_info": {
+    "project_number": "300397946654",
+    "project_id": "spatial-acumen-298412"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:300397946654:android:motivapp",
+        "android_client_info": {
+          "package_name": "com.motivapp.motivapp"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "300397946654-vg5kjmsina57lk57nihkje8a370ctj1l.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.motivapp.motivapp",
+            "certificate_hash": "9b035c89cefa4995beda199ebe82b124257c4103"
+          }
+        },
+        {
+          "client_id": "300397946654-rl7q0906d66beu4vhks0f45s25ntn5f7.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBx1vsFuqtObTVGlxjsA5q-bLbNLWW0t04"
+        }
+      ]
+    }
+  ],
+  "configuration_version": "1"
+}

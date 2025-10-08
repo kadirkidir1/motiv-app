@@ -1,9 +1,14 @@
 import 'package:flutter/material.dart';
 import 'login_screen.dart';
 import 'home_screen.dart';
+import 'profile_setup_screen.dart';
 import '../services/motivation_quotes.dart';
 import '../services/language_service.dart';
 import '../services/auth_service.dart';
+import '../services/profile_service.dart';
+import '../services/database_service.dart';
+import '../services/database_debug.dart';
+import 'dart:developer' as developer;
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -33,19 +38,51 @@ class _SplashScreenState extends State<SplashScreen> {
 
   _navigateToLogin() async {
     await Future.delayed(const Duration(seconds: 2));
-    
+
     if (mounted) {
       // Check if user should be remembered
       final shouldRemember = await AuthService.shouldRememberUser();
       final isSignedIn = AuthService.isSignedIn();
-      
+
       if (mounted) {
         if (isSignedIn && shouldRemember) {
-          // User is signed in and should be remembered, go to home
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (context) => const HomeScreen()),
-          );
+          // User is signed in and should be remembered
+          developer.log('User is signed in, syncing from cloud...', name: 'SplashScreen');
+          
+          // Debug: Check cloud data before sync
+          await DatabaseDebug.runFullCheck();
+          
+          // Sync data from cloud
+          try {
+            await DatabaseService.syncFromCloud();
+            developer.log('Sync completed successfully', name: 'SplashScreen');
+          } catch (e) {
+            developer.log('Sync error: $e', name: 'SplashScreen');
+          }
+          
+          // Check if profile is complete
+          final profile = await ProfileService.getProfile();
+
+          if (mounted) {
+            if (profile?.fullName == null || profile?.age == null ||
+                profile?.country == null || profile?.city == null) {
+              // Profile incomplete, go to setup
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => ProfileSetupScreen(
+                    email: AuthService.getCurrentUser()!.email!,
+                  ),
+                ),
+              );
+            } else {
+              // Profile complete, go to home
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (context) => const HomeScreen()),
+              );
+            }
+          }
         } else {
           // Go to login screen
           Navigator.pushReplacement(
@@ -67,10 +104,14 @@ class _SplashScreenState extends State<SplashScreen> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(
-                Icons.psychology,
-                size: 100,
-                color: Colors.white,
+              ClipRRect(
+                borderRadius: BorderRadius.circular(20),
+                child: Image.asset(
+                  'assets/images/MotivAppUse.png',
+                  width: 80,
+                  height: 80,
+                  fit: BoxFit.cover,
+                ),
               ),
               const SizedBox(height: 20),
               Text(

@@ -58,11 +58,12 @@ class _MotivationDetailScreenState extends State<MotivationDetailScreen> {
         final dateKey = '${date.year}-${date.month}-${date.day}';
         final note = notesByDate[dateKey];
         
+        final minutes = note != null ? await _getMinutesFromNote(note) : 0;
         newProgressList.add(MotivationProgress(
           motivationId: widget.motivation.id,
           date: date,
-          completed: note != null,
-          minutesSpent: note != null ? _getMinutesFromNote(note) : 0,
+          completed: note != null && minutes > 0,
+          minutesSpent: minutes,
         ));
       }
       
@@ -79,10 +80,19 @@ class _MotivationDetailScreenState extends State<MotivationDetailScreen> {
     }
   }
   
-  int _getMinutesFromNote(DailyNote note) {
-    // Daily note'dan dakika bilgisini çıkar
-    // Şimdilik hedef dakikayı kullan, ileride note'a minutesSpent eklenebilir
-    return widget.motivation.targetMinutes;
+  Future<int> _getMinutesFromNote(DailyNote note) async {
+    final db = await DatabaseService.database;
+    final result = await db.query(
+      'daily_notes',
+      columns: ['minutesSpent'],
+      where: 'id = ?',
+      whereArgs: [note.id],
+    );
+    
+    if (result.isNotEmpty) {
+      return result.first['minutesSpent'] as int? ?? 0;
+    }
+    return 0;
   }
   
   List<MotivationProgress> _generateEmptyProgress() {
@@ -108,7 +118,7 @@ class _MotivationDetailScreenState extends State<MotivationDetailScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.motivation.title),
-        backgroundColor: _getCategoryColor(widget.motivation.category),
+        backgroundColor: Colors.green.shade300,
         foregroundColor: Colors.white,
         actions: [
           IconButton(
@@ -118,6 +128,10 @@ class _MotivationDetailScreenState extends State<MotivationDetailScreen> {
           IconButton(
             icon: const Icon(Icons.check_circle),
             onPressed: _markTodayComplete,
+          ),
+          IconButton(
+            icon: const Icon(Icons.edit),
+            onPressed: _editMotivation,
           ),
         ],
       ),
@@ -479,6 +493,7 @@ class _MotivationDetailScreenState extends State<MotivationDetailScreen> {
 
   void _addDailyNote() {
     final noteController = TextEditingController();
+    final minutesController = TextEditingController();
     int selectedMood = 3;
 
     showDialog(
@@ -486,47 +501,59 @@ class _MotivationDetailScreenState extends State<MotivationDetailScreen> {
       builder: (context) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
           title: Text(AppLocalizations.get('add_daily_note', _languageCode)),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: noteController,
-                decoration: InputDecoration(
-                  hintText: AppLocalizations.get('how_was_today', _languageCode),
-                  border: const OutlineInputBorder(),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: noteController,
+                  decoration: InputDecoration(
+                    hintText: AppLocalizations.get('how_was_today', _languageCode),
+                    border: const OutlineInputBorder(),
+                  ),
+                  maxLines: 3,
                 ),
-                maxLines: 3,
-              ),
-              const SizedBox(height: 16),
-              Text(AppLocalizations.get('how_do_you_feel', _languageCode)),
-              const SizedBox(height: 8),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: List.generate(5, (index) {
-                  final mood = index + 1;
-                  return GestureDetector(
-                    onTap: () {
-                      setDialogState(() {
-                        selectedMood = mood;
-                      });
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: selectedMood == mood
-                            ? _getMoodColor(mood)
-                            : Colors.grey.shade200,
-                        borderRadius: BorderRadius.circular(8),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: minutesController,
+                  decoration: InputDecoration(
+                    labelText: AppLocalizations.get('how_many_minutes', _languageCode),
+                    border: const OutlineInputBorder(),
+                    suffixText: AppLocalizations.get('minutes', _languageCode),
+                  ),
+                  keyboardType: TextInputType.number,
+                ),
+                const SizedBox(height: 16),
+                Text(AppLocalizations.get('how_do_you_feel', _languageCode)),
+                const SizedBox(height: 8),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: List.generate(5, (index) {
+                    final mood = index + 1;
+                    return GestureDetector(
+                      onTap: () {
+                        setDialogState(() {
+                          selectedMood = mood;
+                        });
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: selectedMood == mood
+                              ? _getMoodColor(mood)
+                              : Colors.grey.shade200,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          _getMoodEmoji(mood),
+                          style: const TextStyle(fontSize: 20),
+                        ),
                       ),
-                      child: Text(
-                        _getMoodEmoji(mood),
-                        style: const TextStyle(fontSize: 20),
-                      ),
-                    ),
-                  );
-                }),
-              ),
-            ],
+                    );
+                  }),
+                ),
+              ],
+            ),
           ),
           actions: [
             TextButton(
@@ -536,6 +563,8 @@ class _MotivationDetailScreenState extends State<MotivationDetailScreen> {
             ElevatedButton(
               onPressed: () async {
                 if (noteController.text.isNotEmpty) {
+                  final minutes = int.tryParse(minutesController.text) ?? 0;
+                  
                   final note = DailyNote(
                     id: DateTime.now().millisecondsSinceEpoch.toString(),
                     motivationId: widget.motivation.id,
@@ -550,11 +579,12 @@ class _MotivationDetailScreenState extends State<MotivationDetailScreen> {
                   final errorText = AppLocalizations.get('error_occurred', _languageCode);
                   
                   try {
-                    await DatabaseService.insertDailyNote(note, true, widget.motivation.targetMinutes);
+                    final isCompleted = minutes >= widget.motivation.targetMinutes;
+                    await DatabaseService.insertDailyNote(note, isCompleted, minutes);
                     setState(() {
                       dailyNotes.insert(0, note);
                     });
-                    _loadRealData(); // Verileri yenile
+                    _loadRealData();
                     
                     navigator.pop();
                     if (mounted) {
@@ -678,28 +708,7 @@ class _MotivationDetailScreenState extends State<MotivationDetailScreen> {
     }
   }
 
-  Color _getCategoryColor(MotivationCategory category) {
-    switch (category) {
-      case MotivationCategory.spiritual:
-        return Colors.green.shade600;
-      case MotivationCategory.education:
-        return Colors.blue.shade600;
-      case MotivationCategory.health:
-        return Colors.orange.shade600;
-      case MotivationCategory.household:
-        return Colors.brown.shade600;
-      case MotivationCategory.selfCare:
-        return Colors.pink.shade600;
-      case MotivationCategory.social:
-        return Colors.teal.shade600;
-      case MotivationCategory.hobby:
-        return Colors.indigo.shade600;
-      case MotivationCategory.career:
-        return Colors.deepOrange.shade600;
-      case MotivationCategory.personal:
-        return Colors.purple.shade600;
-    }
-  }
+
 
   Widget _buildSimpleChart() {
     final last7Days = progressList.reversed.take(7).toList().reversed.toList();
@@ -799,5 +808,69 @@ class _MotivationDetailScreenState extends State<MotivationDetailScreen> {
     if (difference < 7) return '$difference ${AppLocalizations.get('days_ago', _languageCode)}';
     
     return '${date.day}/${date.month}/${date.year}';
+  }
+
+  void _editMotivation() {
+    final targetMinutesController = TextEditingController(
+      text: widget.motivation.targetMinutes.toString(),
+    );
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(_languageCode == 'tr' ? 'Motivasyonu Düzenle' : 'Edit Motivation'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: targetMinutesController,
+              decoration: InputDecoration(
+                labelText: AppLocalizations.get('target_time', _languageCode),
+                border: const OutlineInputBorder(),
+                suffixText: AppLocalizations.get('minutes', _languageCode),
+              ),
+              keyboardType: TextInputType.number,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(AppLocalizations.get('cancel', _languageCode)),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final newTargetMinutes = int.tryParse(targetMinutesController.text) ?? widget.motivation.targetMinutes;
+              
+              final updatedMotivation = widget.motivation.copyWith(
+                targetMinutes: newTargetMinutes,
+              );
+              
+              final navigator = Navigator.of(context);
+              final messenger = ScaffoldMessenger.of(context);
+              
+              try {
+                await DatabaseService.updateMotivation(updatedMotivation);
+                navigator.pop();
+                navigator.pop(true);
+                if (mounted) {
+                  messenger.showSnackBar(
+                    SnackBar(content: Text(_languageCode == 'tr' ? 'Motivasyon güncellendi' : 'Motivation updated')),
+                  );
+                }
+              } catch (e) {
+                navigator.pop();
+                if (mounted) {
+                  messenger.showSnackBar(
+                    SnackBar(content: Text(AppLocalizations.get('error_occurred', _languageCode))),
+                  );
+                }
+              }
+            },
+            child: Text(AppLocalizations.get('save', _languageCode)),
+          ),
+        ],
+      ),
+    );
   }
 }

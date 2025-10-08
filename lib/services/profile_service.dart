@@ -19,11 +19,12 @@ class ProfileService {
       if (response != null) {
         return UserProfile.fromJson(response);
       }
-      
-      // If no profile exists, create one
+
+      // If no profile exists, create a basic one
       return await _createProfile(user);
     } catch (e) {
-      throw Exception('Failed to get profile: ${e.toString()}');
+      // Return null instead of throwing, let caller handle it
+      return null;
     }
   }
 
@@ -51,8 +52,7 @@ class ProfileService {
 
       await _supabase
           .from('profiles')
-          .upsert(profile.toJson())
-          .eq('id', user.id);
+          .upsert(profile.toJson());
     } catch (e) {
       throw Exception('Failed to update profile: ${e.toString()}');
     }

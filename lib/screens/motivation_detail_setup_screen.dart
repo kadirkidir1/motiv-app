@@ -454,4 +454,6 @@ class _MotivationDetailSetupScreenState extends State<MotivationDetailSetupScree
         return AppLocalizations.get('monthly', _currentLanguageCode);
     }
   }
+
+
 }

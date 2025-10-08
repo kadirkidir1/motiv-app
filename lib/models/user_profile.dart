@@ -3,7 +3,8 @@ class UserProfile {
   final String email;
   final String? fullName;
   final int? age;
-  final String? location;
+  final String? country;
+  final String? city;
   final String? avatarUrl;
   final DateTime? createdAt;
   final DateTime? updatedAt;
@@ -13,7 +14,8 @@ class UserProfile {
     required this.email,
     this.fullName,
     this.age,
-    this.location,
+    this.country,
+    this.city,
     this.avatarUrl,
     this.createdAt,
     this.updatedAt,
@@ -25,7 +27,8 @@ class UserProfile {
       email: json['email'],
       fullName: json['full_name'],
       age: json['age'],
-      location: json['location'],
+      country: json['country'],
+      city: json['city'],
       avatarUrl: json['avatar_url'],
       createdAt: json['created_at'] != null ? DateTime.parse(json['created_at']) : null,
       updatedAt: json['updated_at'] != null ? DateTime.parse(json['updated_at']) : null,
@@ -38,7 +41,8 @@ class UserProfile {
       'email': email,
       'full_name': fullName,
       'age': age,
-      'location': location,
+      'country': country,
+      'city': city,
       'avatar_url': avatarUrl,
       'updated_at': DateTime.now().toIso8601String(),
     };
@@ -49,7 +53,8 @@ class UserProfile {
     String? email,
     String? fullName,
     int? age,
-    String? location,
+    String? country,
+    String? city,
     String? avatarUrl,
     DateTime? createdAt,
     DateTime? updatedAt,
@@ -59,7 +64,8 @@ class UserProfile {
       email: email ?? this.email,
       fullName: fullName ?? this.fullName,
       age: age ?? this.age,
-      location: location ?? this.location,
+      country: country ?? this.country,
+      city: city ?? this.city,
       avatarUrl: avatarUrl ?? this.avatarUrl,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,

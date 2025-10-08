@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import '../models/daily_task.dart';
 import '../services/language_service.dart';
 import '../services/database_service.dart';
+import '../services/subscription_service.dart';
+import 'premium_screen.dart';
 
 class DailyTasksScreen extends StatefulWidget {
   final String languageCode;
@@ -46,11 +48,6 @@ class _DailyTasksScreenState extends State<DailyTasksScreen> {
     final completedTasks = tasks.where((task) => task.status == TaskStatus.completed).toList();
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(AppLocalizations.get('daily_tasks', widget.languageCode)),
-        backgroundColor: Colors.green.shade600,
-        foregroundColor: Colors.white,
-      ),
       body: isLoading
           ? const Center(child: CircularProgressIndicator())
           : tasks.isEmpty
@@ -235,7 +232,15 @@ class _DailyTasksScreenState extends State<DailyTasksScreen> {
     );
   }
 
-  void _addNewTask() {
+  void _addNewTask() async {
+    final canAdd = await SubscriptionService.canAddTask();
+    if (!mounted) return;
+    
+    if (!canAdd) {
+      _showPremiumRequired();
+      return;
+    }
+    
     showDialog(
       context: context,
       builder: (context) => _AddTaskDialog(
@@ -246,6 +251,51 @@ class _DailyTasksScreenState extends State<DailyTasksScreen> {
             tasks.add(task);
           });
         },
+      ),
+    );
+  }
+
+  void _showPremiumRequired() {
+    final isTurkish = widget.languageCode == 'tr';
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(Icons.workspace_premium, color: Colors.amber.shade700),
+            const SizedBox(width: 8),
+            Text(isTurkish ? 'Premium Gerekli' : 'Premium Required'),
+          ],
+        ),
+        content: Text(
+          isTurkish
+              ? 'Ücretsiz hesapta en fazla 2 görev ekleyebilirsiniz. Sınırsız görev için Premium\'a geçin!'
+              : 'Free accounts can add up to 2 tasks. Upgrade to Premium for unlimited tasks!',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(isTurkish ? 'İptal' : 'Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => PremiumScreen(languageCode: widget.languageCode),
+                ),
+              );
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.amber.shade700,
+            ),
+            child: Text(
+              isTurkish ? 'Premium\'a Geç' : 'Go Premium',
+              style: const TextStyle(color: Colors.white),
+            ),
+          ),
+        ],
       ),
     );
   }

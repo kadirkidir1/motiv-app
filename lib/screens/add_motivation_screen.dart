@@ -3,6 +3,7 @@ import '../models/motivation.dart';
 import 'motivation_detail_setup_screen.dart';
 import '../services/language_service.dart';
 import '../services/predefined_motivations.dart';
+import 'celebration_screen.dart';
 
 class AddMotivationScreen extends StatefulWidget {
   final String languageCode;
@@ -323,7 +324,7 @@ class _AddMotivationScreenState extends State<AddMotivationScreen> {
       ),
     );
     if (result != null && result is Motivation && mounted) {
-      Navigator.pop(context, result);
+      _showCelebration(result);
     }
   }
 
@@ -340,8 +341,27 @@ class _AddMotivationScreenState extends State<AddMotivationScreen> {
         createdAt: DateTime.now(),
         targetMinutes: int.tryParse(_targetMinutesController.text) ?? 0,
       );
-      Navigator.pop(context, motivation);
+      _showCelebration(motivation);
     }
+  }
+
+  void _showCelebration(Motivation motivation) {
+    Navigator.push(
+      context,
+      PageRouteBuilder(
+        pageBuilder: (context, animation, secondaryAnimation) => CelebrationScreen(
+          message: '"${motivation.title}" motivasyonu oluşturuldu!',
+          onComplete: () {
+            Navigator.pop(context); // Kutlama ekranını kapat
+            Navigator.pop(context, motivation); // Ana ekrana dön
+          },
+        ),
+        transitionDuration: const Duration(milliseconds: 300),
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          return FadeTransition(opacity: animation, child: child);
+        },
+      ),
+    );
   }
 
   Future<void> _selectAlarmTime() async {

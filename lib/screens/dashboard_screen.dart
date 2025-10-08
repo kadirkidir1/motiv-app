@@ -3,9 +3,10 @@ import '../models/motivation.dart';
 import '../models/daily_task.dart';
 import 'motivation_detail_screen.dart';
 import 'daily_record_screen.dart';
-import '../services/motivation_quotes.dart';
 import '../services/language_service.dart';
 import '../services/database_service.dart';
+import '../services/subscription_service.dart';
+import 'premium_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   final List<Motivation> motivations;
@@ -24,11 +25,27 @@ class DashboardScreen extends StatefulWidget {
 class _DashboardScreenState extends State<DashboardScreen> {
   List<DailyTask> dailyTasks = [];
   bool isLoadingTasks = true;
+  Map<String, int> todayProgress = {'total': 0, 'completed': 0, 'remaining': 0};
+  Map<String, double> weeklyStats = {'successRate': 0.0, 'totalMinutes': 0.0, 'streak': 0.0};
+  Map<String, double> motivationProgress = {};
 
   @override
   void initState() {
     super.initState();
     _loadDailyTasks();
+    _loadTodayProgress();
+    _loadWeeklyStats();
+    _loadMotivationProgress();
+  }
+
+  @override
+  void didUpdateWidget(DashboardScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.motivations.length != widget.motivations.length) {
+      _loadTodayProgress();
+      _loadWeeklyStats();
+      _loadMotivationProgress();
+    }
   }
 
   Future<void> _loadDailyTasks() async {
@@ -45,10 +62,68 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
   }
 
+  Future<void> _loadTodayProgress() async {
+    try {
+      final progress = await _getTodayProgressFromDatabase();
+      setState(() {
+        todayProgress = progress;
+      });
+    } catch (e) {
+      // Keep default values on error
+    }
+  }
+
+  Future<void> _loadWeeklyStats() async {
+    try {
+      final stats = await _getWeeklyStatsFromDatabase();
+      setState(() {
+        weeklyStats = stats;
+      });
+    } catch (e) {
+      // Keep default values on error
+    }
+  }
+
+  Future<void> _loadMotivationProgress() async {
+    final progressMap = <String, double>{};
+    
+    for (final motivation in widget.motivations) {
+      final progress = await _calculateMotivationProgress(motivation);
+      progressMap[motivation.id] = progress;
+    }
+    
+    setState(() {
+      motivationProgress = progressMap;
+    });
+  }
+
+  Future<double> _calculateMotivationProgress(Motivation motivation) async {
+    final now = DateTime.now();
+    final daysSinceCreation = now.difference(motivation.createdAt).inDays;
+    
+    if (daysSinceCreation < 1) {
+      return 0.0;
+    }
+
+    final notes = await DatabaseService.getDailyNotes(motivation.id);
+    final completedDays = notes.length;
+
+    if (motivation.frequency == MotivationFrequency.daily) {
+      final expectedDays = daysSinceCreation;
+      return expectedDays > 0 ? (completedDays / expectedDays) * 100 : 0.0;
+    } else if (motivation.frequency == MotivationFrequency.weekly) {
+      final expectedWeeks = (daysSinceCreation / 7).ceil();
+      if (expectedWeeks == 0) return 0.0;
+      return (completedDays / expectedWeeks) * 100;
+    } else {
+      final expectedMonths = (daysSinceCreation / 30).ceil();
+      if (expectedMonths == 0) return 0.0;
+      return (completedDays / expectedMonths) * 100;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final todayProgress = _getTodayProgress();
-    final weeklyStats = _getWeeklyStats();
 
     return Scaffold(
       body: SingleChildScrollView(
@@ -58,17 +133,28 @@ class _DashboardScreenState extends State<DashboardScreen> {
           children: [
             _buildWelcomeCard(),
             const SizedBox(height: 20),
-            _buildDailyQuote(),
-            const SizedBox(height: 20),
-            _buildTodayOverview(todayProgress),
-            const SizedBox(height: 20),
             _buildDailyTasksOverview(),
-            const SizedBox(height: 20),
-            _buildWeeklyStats(weeklyStats),
             const SizedBox(height: 20),
             _buildMotivationGrid(),
             const SizedBox(height: 20),
-            _buildQuickActions(),
+            _buildTodayOverview(todayProgress),
+            const SizedBox(height: 20),
+            FutureBuilder<bool>(
+              future: SubscriptionService.isPremium(),
+              builder: (context, snapshot) {
+                final isPremium = snapshot.data ?? false;
+                if (!isPremium) {
+                  return _buildPremiumFeatureCard();
+                }
+                return Column(
+                  children: [
+                    _buildWeeklyStats(weeklyStats),
+                    const SizedBox(height: 20),
+                    _buildCalendarWidget(),
+                  ],
+                );
+              },
+            ),
           ],
         ),
       ),
@@ -522,11 +608,38 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return '${date.day}/${date.month}/${date.year} ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
   }
 
-  void _showTodaySummaryDetails(String title, String value, String total, Color color) {
+  void _showTodaySummaryDetails(String title, String value, String total, Color color) async {
     final isCompleted = title.contains(AppLocalizations.get('completed', widget.languageCode));
     
-    // Tüm motivasyonları göster
-    final relevantMotivations = widget.motivations;
+    final today = DateTime.now();
+    final todayStart = DateTime(today.year, today.month, today.day);
+    final todayEnd = todayStart.add(const Duration(days: 1));
+    
+    final List<Motivation> relevantMotivations = [];
+    
+    for (final motivation in widget.motivations) {
+      final notes = await DatabaseService.getDailyNotes(motivation.id);
+      bool hasCompletedToday = false;
+      
+      for (final note in notes) {
+        final noteDate = note.date;
+        if (noteDate.isAfter(todayStart) && noteDate.isBefore(todayEnd)) {
+          final minutes = await _getMinutesForNote(note.id);
+          if (minutes >= motivation.targetMinutes) {
+            hasCompletedToday = true;
+            break;
+          }
+        }
+      }
+      
+      if (isCompleted && hasCompletedToday) {
+        relevantMotivations.add(motivation);
+      } else if (!isCompleted && !hasCompletedToday) {
+        relevantMotivations.add(motivation);
+      }
+    }
+    
+    if (!mounted) return;
     
     showDialog(
       context: context,
@@ -971,7 +1084,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   Colors.purple,
                 ),
                 _buildWeeklyStatItem(
-                  AppLocalizations.get('streak', widget.languageCode),
+                  widget.languageCode == 'tr' ? 'Seri' : 'Streak',
                   '${weeklyStats['streak']?.round()} ${AppLocalizations.get('days', widget.languageCode)}',
                   Icons.local_fire_department,
                   Colors.orange,
@@ -1107,77 +1220,230 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Widget _buildQuickActions() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          AppLocalizations.get('quick_actions', widget.languageCode),
-          style: const TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        const SizedBox(height: 12),
-        SizedBox(
-          width: double.infinity,
-          child: _buildQuickActionCard(
-            AppLocalizations.get('complete_today', widget.languageCode),
-            Icons.check_circle,
-            Colors.green,
-            () => _markAllTodayComplete(),
-          ),
-        ),
-      ],
-    );
-  }
+  Widget _buildCalendarWidget() {
+    final now = DateTime.now();
+    final firstDayOfMonth = DateTime(now.year, now.month, 1);
+    final lastDayOfMonth = DateTime(now.year, now.month + 1, 0);
+    final daysInMonth = lastDayOfMonth.day;
+    final startWeekday = firstDayOfMonth.weekday;
 
-  Widget _buildQuickActionCard(String title, IconData icon, Color color, VoidCallback onTap) {
     return Card(
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(8),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            children: [
-              Icon(icon, color: color, size: 32),
-              const SizedBox(height: 8),
-              Text(
-                title,
-                style: const TextStyle(
-                  fontWeight: FontWeight.w600,
-                  fontSize: 14,
-                ),
-                textAlign: TextAlign.center,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              widget.languageCode == 'tr' ? 'Takvim' : 'Calendar',
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
               ),
-            ],
-          ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              '${_getMonthName(now.month)} ${now.year}',
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz']
+                  .map((day) => SizedBox(
+                        width: 40,
+                        child: Text(
+                          day,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                        ),
+                      ))
+                  .toList(),
+            ),
+            const SizedBox(height: 8),
+            FutureBuilder<Map<String, bool>>(
+              future: _getCalendarData(),
+              builder: (context, snapshot) {
+                final calendarData = snapshot.data ?? {};
+                return GridView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 7,
+                    childAspectRatio: 1,
+                    crossAxisSpacing: 4,
+                    mainAxisSpacing: 4,
+                  ),
+                  itemCount: startWeekday - 1 + daysInMonth,
+                  itemBuilder: (context, index) {
+                    if (index < startWeekday - 1) {
+                      return const SizedBox();
+                    }
+
+                    final day = index - startWeekday + 2;
+                    final date = DateTime(now.year, now.month, day);
+                    final dateKey = '${date.year}-${date.month}-${date.day}';
+                    final hasActivity = calendarData[dateKey] ?? false;
+                    final isToday = now.year == date.year &&
+                        now.month == date.month &&
+                        now.day == date.day;
+
+                    return GestureDetector(
+                      onTap: () => _showDayDetails(date),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: hasActivity ? Colors.green.shade100 : null,
+                          border: isToday ? Border.all(color: Colors.blue, width: 2) : null,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Center(
+                          child: Text(
+                            '$day',
+                            style: TextStyle(
+                              fontWeight: isToday ? FontWeight.bold : FontWeight.normal,
+                            ),
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
+          ],
         ),
       ),
     );
   }
 
-  Map<String, int> _getTodayProgress() {
-    final total = widget.motivations.length;
-    // In a real app, this would check daily_notes for today's completions
-    // For now, simulate based on motivation frequency and current time
-    final now = DateTime.now();
-    int completed = 0;
+  Future<Map<String, bool>> _getCalendarData() async {
+    final Map<String, bool> calendarData = {};
     
     for (final motivation in widget.motivations) {
-      if (motivation.frequency == MotivationFrequency.daily) {
-        // Simulate completion based on time of day
-        if (now.hour > 12) completed++; // Assume completed if after noon
-      } else if (motivation.frequency == MotivationFrequency.weekly) {
-        // Weekly tasks are less likely to be completed today
-        if (now.weekday == DateTime.monday) completed++;
+      final notes = await DatabaseService.getDailyNotes(motivation.id);
+      for (final note in notes) {
+        final dateKey = '${note.date.year}-${note.date.month}-${note.date.day}';
+        calendarData[dateKey] = true;
       }
     }
     
-    // Ensure completed doesn't exceed total
-    completed = completed > total ? total : completed;
+    return calendarData;
+  }
+
+  void _showDayDetails(DateTime date) async {
+    final dateKey = '${date.year}-${date.month}-${date.day}';
+    final List<String> motivationNotes = [];
     
+    for (final motivation in widget.motivations) {
+      final notes = await DatabaseService.getDailyNotes(motivation.id);
+      for (final note in notes) {
+        final noteKey = '${note.date.year}-${note.date.month}-${note.date.day}';
+        if (noteKey == dateKey) {
+          motivationNotes.add('${motivation.title}: ${note.note}');
+        }
+      }
+    }
+    
+    final dayTasks = dailyTasks.where((task) {
+      final taskDate = task.expiresAt;
+      return taskDate.year == date.year && taskDate.month == date.month && taskDate.day == date.day;
+    }).toList();
+    
+    if (!mounted) return;
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('${date.day} ${_getMonthName(date.month)} ${date.year}'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (motivationNotes.isEmpty && dayTasks.isEmpty)
+                Text(
+                  widget.languageCode == 'tr' ? 'Bu gün için aktivite yok' : 'No activities',
+                  style: TextStyle(color: Colors.grey.shade600),
+                )
+              else ...[
+                if (motivationNotes.isNotEmpty) ...[
+                  Text(
+                    widget.languageCode == 'tr' ? 'Motivasyonlar' : 'Motivations',
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 8),
+                  ...motivationNotes.map((note) => Padding(
+                    padding: const EdgeInsets.only(bottom: 6),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.check_circle, color: Colors.green, size: 16),
+                        const SizedBox(width: 8),
+                        Expanded(child: Text(note, style: const TextStyle(fontSize: 13))),
+                      ],
+                    ),
+                  )),
+                  const SizedBox(height: 12),
+                ],
+                if (dayTasks.isNotEmpty) ...[
+                  Text(
+                    widget.languageCode == 'tr' ? 'Görevler' : 'Tasks',
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 8),
+                  ...dayTasks.map((task) => Padding(
+                    padding: const EdgeInsets.only(bottom: 6),
+                    child: Row(
+                      children: [
+                        Icon(
+                          task.status == TaskStatus.completed ? Icons.check_circle : Icons.schedule,
+                          color: task.status == TaskStatus.completed ? Colors.green : Colors.orange,
+                          size: 16,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(child: Text(task.title, style: const TextStyle(fontSize: 13))),
+                      ],
+                    ),
+                  )),
+                ],
+              ],
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(AppLocalizations.get('close', widget.languageCode)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<Map<String, int>> _getTodayProgressFromDatabase() async {
+    final total = widget.motivations.length;
+    if (total == 0) {
+      return {'total': 0, 'completed': 0, 'remaining': 0};
+    }
+
+    int completed = 0;
+    final today = DateTime.now();
+    final todayStart = DateTime(today.year, today.month, today.day);
+    final todayEnd = todayStart.add(const Duration(days: 1));
+
+    for (final motivation in widget.motivations) {
+      final notes = await DatabaseService.getDailyNotes(motivation.id);
+      
+      for (final note in notes) {
+        final noteDate = note.date;
+        if (noteDate.isAfter(todayStart) && noteDate.isBefore(todayEnd)) {
+          final minutes = await _getMinutesForNote(note.id);
+          if (minutes >= motivation.targetMinutes) {
+            completed++;
+            break;
+          }
+        }
+      }
+    }
+
     return {
       'total': total,
       'completed': completed,
@@ -1185,147 +1451,84 @@ class _DashboardScreenState extends State<DashboardScreen> {
     };
   }
 
-  Map<String, double> _getWeeklyStats() {
+  Future<Map<String, double>> _getWeeklyStatsFromDatabase() async {
     if (widget.motivations.isEmpty) {
-      return {
-        'successRate': 0.0,
-        'totalMinutes': 0.0,
-        'streak': 0.0,
-      };
+      return {'successRate': 0.0, 'totalMinutes': 0.0, 'streak': 0.0};
     }
-    
-    // Calculate based on actual motivations
-    double completedMinutes = 0;
-    int totalExpectedSessions = 0;
-    int completedSessions = 0;
-    
+
     final now = DateTime.now();
-    final dayOfWeek = now.weekday; // 1 = Monday, 7 = Sunday
-    
+    final weekStart = now.subtract(Duration(days: now.weekday - 1));
+    final weekStartDate = DateTime(weekStart.year, weekStart.month, weekStart.day);
+    final weekEnd = weekStartDate.add(const Duration(days: 7));
+
+    int totalExpected = 0;
+    int totalCompleted = 0;
+    double totalMinutes = 0;
+    int consecutiveDays = 0;
+
     for (final motivation in widget.motivations) {
-      final daysSinceCreation = now.difference(motivation.createdAt).inDays;
+      final notes = await DatabaseService.getDailyNotes(motivation.id);
       
+      final weekNotes = notes.where((note) {
+        return note.date.isAfter(weekStartDate) && note.date.isBefore(weekEnd);
+      }).toList();
+
       if (motivation.frequency == MotivationFrequency.daily) {
-        // For daily motivations, count days passed this week
-        final daysThisWeek = dayOfWeek; // Days passed in current week
-        totalExpectedSessions += daysThisWeek;
-        // totalExpectedMinutes += motivation.targetMinutes * daysThisWeek;
-        
-        // Realistic completion: newer motivations have lower completion rate
-        final completionRate = daysSinceCreation < 7 ? 0.3 : daysSinceCreation < 30 ? 0.6 : 0.8;
-        final sessionsCompleted = (daysThisWeek * completionRate).round();
-        completedSessions += sessionsCompleted;
-        completedMinutes += motivation.targetMinutes * sessionsCompleted;
-        
+        totalExpected += now.weekday;
+        totalCompleted += weekNotes.length;
+        totalMinutes += (weekNotes.length * motivation.targetMinutes).toDouble();
       } else if (motivation.frequency == MotivationFrequency.weekly) {
-        totalExpectedSessions += 1;
-        // totalExpectedMinutes += motivation.targetMinutes;
-        
-        // Weekly tasks: 70% completion rate
-        if (dayOfWeek >= 3) { // If we're past Tuesday, assume it might be done
-          completedSessions += 1;
-          completedMinutes += motivation.targetMinutes * 0.7;
+        totalExpected += 1;
+        if (weekNotes.isNotEmpty) {
+          totalCompleted += 1;
+          totalMinutes += motivation.targetMinutes.toDouble();
         }
       }
+
+      final allNotes = notes..sort((a, b) => b.date.compareTo(a.date));
+      int currentStreak = 0;
+      DateTime? lastDate;
+      
+      for (final note in allNotes) {
+        if (lastDate == null) {
+          lastDate = note.date;
+          currentStreak = 1;
+        } else {
+          final diff = lastDate.difference(note.date).inDays;
+          if (diff == 1) {
+            currentStreak++;
+            lastDate = note.date;
+          } else {
+            break;
+          }
+        }
+      }
+      
+      if (currentStreak > consecutiveDays) {
+        consecutiveDays = currentStreak;
+      }
     }
-    
-    final successRate = totalExpectedSessions > 0 ? (completedSessions / totalExpectedSessions) * 100 : 0.0;
-    
-    // Streak calculation based on consistency
-    final avgDaysPerMotivation = widget.motivations.isNotEmpty 
-        ? widget.motivations.map((m) => now.difference(m.createdAt).inDays).reduce((a, b) => a + b) / widget.motivations.length
-        : 0;
-    final streak = avgDaysPerMotivation > 21 ? 7.0 : avgDaysPerMotivation > 14 ? 5.0 : avgDaysPerMotivation > 7 ? 3.0 : 1.0;
-    
+
+    final successRate = totalExpected > 0 ? (totalCompleted / totalExpected) * 100 : 0.0;
+
     return {
       'successRate': successRate,
-      'totalMinutes': completedMinutes,
-      'streak': streak,
+      'totalMinutes': totalMinutes,
+      'streak': consecutiveDays.toDouble(),
     };
   }
 
   double _getMotivationProgress(Motivation motivation) {
-    // Calculate progress based on motivation frequency and creation date
-    final now = DateTime.now();
-    final daysSinceCreation = now.difference(motivation.createdAt).inDays;
-    
-    double progress = 0.0;
-    
-    if (motivation.frequency == MotivationFrequency.daily) {
-      // For daily motivations, progress based on consistency
-      final expectedDays = daysSinceCreation + 1;
-      final completedDays = (expectedDays * 0.7).round(); // Assume 70% completion
-      progress = expectedDays > 0 ? (completedDays / expectedDays) * 100 : 0.0;
-    } else if (motivation.frequency == MotivationFrequency.weekly) {
-      // For weekly motivations
-      final expectedWeeks = (daysSinceCreation / 7).ceil();
-      final completedWeeks = (expectedWeeks * 0.8).round(); // Assume 80% completion
-      progress = expectedWeeks > 0 ? (completedWeeks / expectedWeeks) * 100 : 0.0;
-    } else {
-      // Monthly motivations
-      final expectedMonths = (daysSinceCreation / 30).ceil();
-      final completedMonths = (expectedMonths * 0.9).round(); // Assume 90% completion
-      progress = expectedMonths > 0 ? (completedMonths / expectedMonths) * 100 : 0.0;
-    }
-    
-    // Ensure progress is between 0 and 100
-    return progress.clamp(0.0, 100.0);
+    return (motivationProgress[motivation.id] ?? 0.0).clamp(0.0, 100.0);
   }
 
   String _getGreeting() {
     final hour = DateTime.now().hour;
     if (hour < 12) return AppLocalizations.get('welcome_morning', widget.languageCode);
-    if (hour < 17) return AppLocalizations.get('welcome_afternoon', widget.languageCode);
-    return AppLocalizations.get('welcome_evening', widget.languageCode);
+    return AppLocalizations.get('welcome_afternoon', widget.languageCode);
   }
 
-  Widget _buildDailyQuote() {
-    final dailyQuote = MotivationQuotes.getDailyQuote();
-    
-    return Card(
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [Colors.purple.shade400, Colors.purple.shade600],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Column(
-          children: [
-            const Icon(
-              Icons.format_quote,
-              color: Colors.white,
-              size: 32,
-            ),
-            const SizedBox(height: 12),
-            Text(
-              dailyQuote.getQuote(widget.languageCode),
-              style: const TextStyle(
-                fontSize: 16,
-                color: Colors.white,
-                fontStyle: FontStyle.italic,
-                height: 1.4,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 12),
-            Text(
-              '- ${dailyQuote.author}',
-              style: const TextStyle(
-                fontSize: 14,
-                color: Colors.white70,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+
 
   String _getMonthName(int month) {
     final monthsTr = [
@@ -1385,27 +1588,77 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
   }
 
-  void _markAllTodayComplete() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(AppLocalizations.get('complete_today', widget.languageCode)),
-        content: Text(AppLocalizations.get('mark_all_complete_question', widget.languageCode)),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(AppLocalizations.get('cancel', widget.languageCode)),
+
+
+  Future<int> _getMinutesForNote(String noteId) async {
+    final db = await DatabaseService.database;
+    final result = await db.query(
+      'daily_notes',
+      columns: ['minutesSpent'],
+      where: 'id = ?',
+      whereArgs: [noteId],
+    );
+    
+    if (result.isNotEmpty) {
+      return result.first['minutesSpent'] as int? ?? 0;
+    }
+    return 0;
+  }
+
+  Widget _buildPremiumFeatureCard() {
+    final isTurkish = widget.languageCode == 'tr';
+    return Card(
+      child: InkWell(
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => PremiumScreen(languageCode: widget.languageCode),
+            ),
+          );
+        },
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            children: [
+              Icon(Icons.workspace_premium, size: 48, color: Colors.amber.shade700),
+              const SizedBox(height: 12),
+              Text(
+                isTurkish ? 'Premium Özellikler' : 'Premium Features',
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                isTurkish
+                    ? 'Detaylı istatistikler ve takvim görünümü için Premium\'a geçin'
+                    : 'Upgrade to Premium for detailed statistics and calendar view',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.grey.shade600),
+              ),
+              const SizedBox(height: 12),
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => PremiumScreen(languageCode: widget.languageCode),
+                    ),
+                  );
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.amber.shade700,
+                ),
+                child: Text(
+                  isTurkish ? 'Premium\'a Geç' : 'Go Premium',
+                  style: const TextStyle(color: Colors.white),
+                ),
+              ),
+            ],
           ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text(AppLocalizations.get('all_motivations_completed', widget.languageCode))),
-              );
-            },
-            child: Text(AppLocalizations.get('complete', widget.languageCode)),
-          ),
-        ],
+        ),
       ),
     );
   }

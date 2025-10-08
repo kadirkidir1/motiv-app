@@ -4,11 +4,12 @@ import 'add_motivation_screen.dart';
 import 'completed_routines_screen.dart';
 import 'motivation_detail_screen.dart';
 import 'dashboard_screen.dart';
-import 'about_screen.dart';
 import 'daily_tasks_screen.dart';
 import 'account_screen.dart';
 import '../services/language_service.dart';
 import '../services/database_service.dart';
+import '../services/subscription_service.dart';
+import 'premium_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -53,7 +54,7 @@ class _HomeScreenState extends State<HomeScreen> {
     return Scaffold(
       appBar: _currentIndex == 0 ? AppBar(
         title: Text(AppLocalizations.get('dashboard', _languageCode)),
-        backgroundColor: Colors.blue.shade600,
+        backgroundColor: Colors.green.shade300,
         foregroundColor: Colors.white,
         actions: [
           GestureDetector(
@@ -91,7 +92,7 @@ class _HomeScreenState extends State<HomeScreen> {
         ],
       ) : _currentIndex == 1 ? AppBar(
         title: Text(AppLocalizations.get('motivations', _languageCode)),
-        backgroundColor: Colors.blue.shade600,
+        backgroundColor: Colors.green.shade300,
         foregroundColor: Colors.white,
         actions: [
           IconButton(
@@ -110,13 +111,13 @@ class _HomeScreenState extends State<HomeScreen> {
         ],
       ) : _currentIndex == 2 ? AppBar(
         title: Text(AppLocalizations.get('daily_tasks', _languageCode)),
-        backgroundColor: Colors.green.shade600,
+        backgroundColor: Colors.green.shade300,
         foregroundColor: Colors.white,
-      ) : _currentIndex == 3 ? AppBar(
+      ) : AppBar(
         title: Text(AppLocalizations.get('account', _languageCode)),
-        backgroundColor: Colors.purple.shade600,
+        backgroundColor: Colors.green.shade300,
         foregroundColor: Colors.white,
-      ) : null,
+      ),
       body: _getSelectedPage(),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
@@ -143,17 +144,21 @@ class _HomeScreenState extends State<HomeScreen> {
             icon: const Icon(Icons.account_circle),
             label: AppLocalizations.get('account', _languageCode),
           ),
-          BottomNavigationBarItem(
-            icon: const Icon(Icons.info),
-            label: AppLocalizations.get('about', _languageCode),
-          ),
         ],
       ),
       floatingActionButton: _currentIndex == 1 ? FloatingActionButton(
         heroTag: "add_motivation",
         onPressed: () async {
-          final result = await Navigator.push(
-            context,
+          final navigator = Navigator.of(context);
+          final canAdd = await SubscriptionService.canAddMotivation();
+          if (!mounted) return;
+          
+          if (!canAdd) {
+            _showPremiumRequired();
+            return;
+          }
+          
+          final result = await navigator.push(
             MaterialPageRoute(
               builder: (context) => AddMotivationScreen(languageCode: _languageCode),
             ),
@@ -176,10 +181,20 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            Icons.psychology_outlined,
-            size: 80,
-            color: Colors.grey.shade400,
+          ClipRRect(
+            borderRadius: BorderRadius.circular(15),
+            child: ColorFiltered(
+              colorFilter: ColorFilter.mode(
+                Colors.grey.shade400,
+                BlendMode.modulate,
+              ),
+              child: Image.asset(
+                'assets/images/MotivAppUse.png',
+                width: 80,
+                height: 80,
+                fit: BoxFit.cover,
+              ),
+            ),
           ),
           const SizedBox(height: 20),
           Text(
@@ -446,8 +461,6 @@ class _HomeScreenState extends State<HomeScreen> {
         return DailyTasksScreen(languageCode: _languageCode);
       case 3:
         return AccountScreen(languageCode: _languageCode);
-      case 4:
-        return AboutScreen(languageCode: _languageCode);
       default:
         return DashboardScreen(motivations: motivations, languageCode: _languageCode);
     }
@@ -508,5 +521,50 @@ class _HomeScreenState extends State<HomeScreen> {
       case MotivationFrequency.monthly:
         return AppLocalizations.get('monthly', _languageCode);
     }
+  }
+
+  void _showPremiumRequired() {
+    final isTurkish = _languageCode == 'tr';
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(Icons.workspace_premium, color: Colors.amber.shade700),
+            const SizedBox(width: 8),
+            Text(isTurkish ? 'Premium Gerekli' : 'Premium Required'),
+          ],
+        ),
+        content: Text(
+          isTurkish
+              ? 'Ücretsiz hesapta en fazla 3 motivasyon ekleyebilirsiniz. Sınırsız motivasyon için Premium\'a geçin!'
+              : 'Free accounts can add up to 3 motivations. Upgrade to Premium for unlimited motivations!',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(isTurkish ? 'İptal' : 'Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => PremiumScreen(languageCode: _languageCode),
+                ),
+              );
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.amber.shade700,
+            ),
+            child: Text(
+              isTurkish ? 'Premium\'a Geç' : 'Go Premium',
+              style: const TextStyle(color: Colors.white),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }

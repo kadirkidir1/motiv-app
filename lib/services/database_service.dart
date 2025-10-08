@@ -211,7 +211,7 @@ class DatabaseService {
   // Daily Tasks CRUD
   static Future<void> insertDailyTask(DailyTask task) async {
     final db = await database;
-    await db.insert('daily_tasks', _taskToMap(task));
+    await db.insert('daily_tasks', _taskToMap(task, forCloud: false));
     _syncTaskToCloud(task);
   }
 
@@ -225,7 +225,7 @@ class DatabaseService {
     final db = await database;
     await db.update(
       'daily_tasks',
-      _taskToMap(task),
+      _taskToMap(task, forCloud: false),
       where: 'id = ?',
       whereArgs: [task.id],
     );
@@ -276,27 +276,54 @@ class DatabaseService {
   // Supabase Sync Methods
   static Future<void> _syncMotivationToCloud(Motivation motivation) async {
     final user = _supabase.auth.currentUser;
-    if (user == null) return;
+    if (user == null) {
+      developer.log('❌ No user logged in, skipping cloud sync', name: 'DatabaseService');
+      return;
+    }
 
     try {
-      final motivationData = _motivationToMap(motivation);
+      final motivationData = _motivationToMap(motivation, forCloud: true);
       motivationData['user_id'] = user.id;
-      await _supabase.from('motivations').upsert(motivationData);
-    } catch (e) {
-      developer.log('Cloud sync error: $e', name: 'DatabaseService');
+      motivationData.remove('syncedToCloud');
+      
+      developer.log('📤 Syncing motivation: ${motivation.title} (ID: ${motivation.id})', name: 'DatabaseService');
+      developer.log('📦 Data: $motivationData', name: 'DatabaseService');
+      
+      final response = await _supabase
+          .from('motivations')
+          .upsert(motivationData)
+          .select();
+      
+      developer.log('✅ Motivation synced successfully: $response', name: 'DatabaseService');
+    } catch (e, stackTrace) {
+      developer.log('❌ Motivation cloud sync error: $e', name: 'DatabaseService');
+      developer.log('Stack trace: $stackTrace', name: 'DatabaseService');
     }
   }
 
   static Future<void> _syncTaskToCloud(DailyTask task) async {
     final user = _supabase.auth.currentUser;
-    if (user == null) return;
+    if (user == null) {
+      developer.log('❌ No user logged in, skipping cloud sync', name: 'DatabaseService');
+      return;
+    }
 
     try {
-      final taskData = _taskToMap(task);
+      final taskData = _taskToMap(task, forCloud: true);
       taskData['user_id'] = user.id;
-      await _supabase.from('daily_tasks').upsert(taskData);
-    } catch (e) {
-      developer.log('Cloud sync error: $e', name: 'DatabaseService');
+      
+      developer.log('📤 Syncing task: ${task.title} (ID: ${task.id})', name: 'DatabaseService');
+      developer.log('📦 Data: $taskData', name: 'DatabaseService');
+      
+      final response = await _supabase
+          .from('daily_tasks')
+          .upsert(taskData)
+          .select();
+      
+      developer.log('✅ Task synced successfully: $response', name: 'DatabaseService');
+    } catch (e, stackTrace) {
+      developer.log('❌ Task cloud sync error: $e', name: 'DatabaseService');
+      developer.log('Stack trace: $stackTrace', name: 'DatabaseService');
     }
   }
 
@@ -332,14 +359,28 @@ class DatabaseService {
 
   static Future<void> _syncNoteToCloud(DailyNote note, bool completed, int minutesSpent) async {
     final user = _supabase.auth.currentUser;
-    if (user == null) return;
+    if (user == null) {
+      developer.log('❌ No user logged in, skipping cloud sync', name: 'DatabaseService');
+      return;
+    }
 
     try {
-      final noteData = _noteToMap(note, completed, minutesSpent);
+      final noteData = _noteToMap(note, completed, minutesSpent, forCloud: true);
       noteData['user_id'] = user.id;
-      await _supabase.from('daily_notes').upsert(noteData);
-    } catch (e) {
-      developer.log('Cloud sync error: $e', name: 'DatabaseService');
+      noteData.remove('syncedToCloud');
+      
+      developer.log('📤 Syncing note: ${note.id} for motivation: ${note.motivationId}', name: 'DatabaseService');
+      developer.log('📦 Data: $noteData', name: 'DatabaseService');
+      
+      final response = await _supabase
+          .from('daily_notes')
+          .upsert(noteData)
+          .select();
+      
+      developer.log('✅ Note synced successfully: $response', name: 'DatabaseService');
+    } catch (e, stackTrace) {
+      developer.log('❌ Note cloud sync error: $e', name: 'DatabaseService');
+      developer.log('Stack trace: $stackTrace', name: 'DatabaseService');
     }
   }
 
@@ -361,65 +402,104 @@ class DatabaseService {
   // Sync from Cloud to Local
   static Future<void> syncFromCloud() async {
     final user = _supabase.auth.currentUser;
-    if (user == null) return;
+    if (user == null) {
+      developer.log('❌ No user logged in, skipping sync', name: 'DatabaseService');
+      return;
+    }
+
+    developer.log('🔄 Starting sync from cloud for user: ${user.id}', name: 'DatabaseService');
 
     try {
+      final db = await database;
+      
       // Sync motivations
+      developer.log('📥 Fetching motivations from cloud...', name: 'DatabaseService');
       final motivationsResponse = await _supabase
           .from('motivations')
           .select()
           .eq('user_id', user.id);
 
+      developer.log('📊 Found ${motivationsResponse.length} motivations in cloud', name: 'DatabaseService');
+      
       for (var data in motivationsResponse) {
-        final motivation = _motivationFromMap(data);
-        final db = await database;
-        await db.insert(
-          'motivations',
-          _motivationToMap(motivation),
-          conflictAlgorithm: ConflictAlgorithm.replace,
-        );
-      }
+          developer.log('📦 Motivation data from cloud: $data', name: 'DatabaseService');
+          final motivation = _motivationFromMap(data);
+          await db.insert(
+            'motivations',
+            _motivationToMap(motivation),
+            conflictAlgorithm: ConflictAlgorithm.replace,
+          );
+          developer.log('✅ Synced motivation: ${motivation.title}', name: 'DatabaseService');
+        }
 
       // Sync tasks
+      developer.log('📥 Fetching tasks from cloud...', name: 'DatabaseService');
       final tasksResponse = await _supabase
           .from('daily_tasks')
           .select()
           .eq('user_id', user.id);
 
+      developer.log('📊 Found ${tasksResponse.length} tasks in cloud', name: 'DatabaseService');
+      
       for (var data in tasksResponse) {
-        final task = _taskFromMap(data);
-        final db = await database;
-        await db.insert(
-          'daily_tasks',
-          _taskToMap(task),
-          conflictAlgorithm: ConflictAlgorithm.replace,
-        );
-      }
+          developer.log('📦 Task data from cloud: $data', name: 'DatabaseService');
+          final task = _taskFromMap(data);
+          await db.insert(
+            'daily_tasks',
+            _taskToMap(task, forCloud: false),
+            conflictAlgorithm: ConflictAlgorithm.replace,
+          );
+          developer.log('✅ Synced task: ${task.title}', name: 'DatabaseService');
+        }
 
       // Sync notes
+      developer.log('📥 Fetching notes from cloud...', name: 'DatabaseService');
       final notesResponse = await _supabase
           .from('daily_notes')
           .select()
           .eq('user_id', user.id);
 
+      developer.log('📊 Found ${notesResponse.length} notes in cloud', name: 'DatabaseService');
+      
       for (var data in notesResponse) {
-        final note = _noteFromMap(data);
-        final completed = data['completed'] == 1;
-        final minutesSpent = data['minutesSpent'] ?? 0;
-        final db = await database;
-        await db.insert(
-          'daily_notes',
-          _noteToMap(note, completed, minutesSpent),
-          conflictAlgorithm: ConflictAlgorithm.replace,
-        );
-      }
-    } catch (e) {
-      developer.log('Sync from cloud error: $e', name: 'DatabaseService');
+          developer.log('📦 Note data from cloud: $data', name: 'DatabaseService');
+          final note = _noteFromMap(data);
+          final completed = (data['completed'] == 1 || data['completed'] == true);
+          final minutesSpent = (data['minutesSpent'] ?? data['minutes_spent'] ?? 0) as int;
+          await db.insert(
+            'daily_notes',
+            _noteToMap(note, completed, minutesSpent),
+            conflictAlgorithm: ConflictAlgorithm.replace,
+          );
+          developer.log('✅ Synced note: ${note.id}', name: 'DatabaseService');
+        }
+      
+      developer.log('🎉 Sync from cloud completed successfully', name: 'DatabaseService');
+    } catch (e, stackTrace) {
+      developer.log('❌ Sync from cloud error: $e', name: 'DatabaseService');
+      developer.log('Stack trace: $stackTrace', name: 'DatabaseService');
+      rethrow;
     }
   }
 
   // Helper methods
-  static Map<String, dynamic> _motivationToMap(Motivation motivation) {
+  static Map<String, dynamic> _motivationToMap(Motivation motivation, {bool forCloud = false}) {
+    if (forCloud) {
+      // Supabase için snake_case
+      return {
+        'id': motivation.id,
+        'title': motivation.title,
+        'description': motivation.description,
+        'category': motivation.category.toString(),
+        'frequency': motivation.frequency.toString(),
+        'has_alarm': motivation.hasAlarm ? 1 : 0,
+        'created_at': motivation.createdAt.toIso8601String(),
+        'is_completed': motivation.isCompleted ? 1 : 0,
+        'target_minutes': motivation.targetMinutes,
+      };
+    }
+    
+    // Local database için camelCase
     return {
       'id': motivation.id,
       'title': motivation.title,
@@ -435,25 +515,52 @@ class DatabaseService {
   }
 
   static Motivation _motivationFromMap(Map<String, dynamic> map) {
+    // Supabase'den gelen data snake_case olabilir
+    final id = map['id']?.toString() ?? '';
+    final title = map['title']?.toString() ?? '';
+    final description = map['description']?.toString() ?? '';
+    final categoryStr = map['category']?.toString() ?? 'MotivationCategory.personal';
+    final frequencyStr = map['frequency']?.toString() ?? 'MotivationFrequency.daily';
+    final hasAlarm = map['hasAlarm'] == 1 || map['has_alarm'] == true || map['has_alarm'] == 1;
+    final alarmTimeStr = map['alarmTime'] ?? map['alarm_time'];
+    final createdAtStr = map['createdAt'] ?? map['created_at'];
+    final isCompleted = map['isCompleted'] == 1 || map['is_completed'] == true || map['is_completed'] == 1;
+    final targetMinutes = (map['targetMinutes'] ?? map['target_minutes'] ?? 0) as int;
+    
     return Motivation(
-      id: map['id'],
-      title: map['title'],
-      description: map['description'],
+      id: id,
+      title: title,
+      description: description,
       category: MotivationCategory.values.firstWhere(
-        (e) => e.toString() == map['category'],
+        (e) => e.toString() == categoryStr,
+        orElse: () => MotivationCategory.personal,
       ),
       frequency: MotivationFrequency.values.firstWhere(
-        (e) => e.toString() == map['frequency'],
+        (e) => e.toString() == frequencyStr,
+        orElse: () => MotivationFrequency.daily,
       ),
-      hasAlarm: map['hasAlarm'] == 1,
-      alarmTime: map['alarmTime'] != null ? _parseTimeOfDay(map['alarmTime']) : null,
-      createdAt: DateTime.parse(map['createdAt']),
-      isCompleted: map['isCompleted'] == 1,
-      targetMinutes: map['targetMinutes'],
+      hasAlarm: hasAlarm,
+      alarmTime: alarmTimeStr != null ? _parseTimeOfDay(alarmTimeStr.toString()) : null,
+      createdAt: DateTime.parse(createdAtStr.toString()),
+      isCompleted: isCompleted,
+      targetMinutes: targetMinutes,
     );
   }
 
-  static Map<String, dynamic> _taskToMap(DailyTask task) {
+  static Map<String, dynamic> _taskToMap(DailyTask task, {bool forCloud = false}) {
+    if (forCloud) {
+      // Supabase için snake_case
+      return {
+        'id': task.id,
+        'title': task.title,
+        'description': task.description,
+        'created_at': task.createdAt.toIso8601String(),
+        'expires_at': task.expiresAt.toIso8601String(),
+        'status': task.status.toString(),
+      };
+    }
+    
+    // Local database için camelCase
     return {
       'id': task.id,
       'title': task.title,
@@ -466,16 +573,26 @@ class DatabaseService {
   }
 
   static DailyTask _taskFromMap(Map<String, dynamic> map) {
+    // Supabase'den gelen data snake_case olabilir
+    final id = map['id']?.toString() ?? '';
+    final title = map['title']?.toString() ?? '';
+    final description = map['description']?.toString() ?? '';
+    final createdAtStr = map['createdAt'] ?? map['created_at'];
+    final expiresAtStr = map['expiresAt'] ?? map['expires_at'];
+    final statusStr = map['status']?.toString() ?? 'TaskStatus.pending';
+    final addToCalendar = map['addToCalendar'] == 1 || map['add_to_calendar'] == true || map['add_to_calendar'] == 1;
+    
     return DailyTask(
-      id: map['id'],
-      title: map['title'],
-      description: map['description'],
-      createdAt: DateTime.parse(map['createdAt']),
-      expiresAt: DateTime.parse(map['expiresAt']),
+      id: id,
+      title: title,
+      description: description,
+      createdAt: DateTime.parse(createdAtStr.toString()),
+      expiresAt: DateTime.parse(expiresAtStr.toString()),
       status: TaskStatus.values.firstWhere(
-        (e) => e.toString() == map['status'],
+        (e) => e.toString() == statusStr,
+        orElse: () => TaskStatus.pending,
       ),
-      addToCalendar: map['addToCalendar'] == 1,
+      addToCalendar: addToCalendar,
     );
   }
 
@@ -485,7 +602,22 @@ class DatabaseService {
     return TimeOfDay(hour: int.parse(parts[0]), minute: int.parse(parts[1]));
   }
 
-  static Map<String, dynamic> _noteToMap(DailyNote note, bool completed, int minutesSpent) {
+  static Map<String, dynamic> _noteToMap(DailyNote note, bool completed, int minutesSpent, {bool forCloud = false}) {
+    if (forCloud) {
+      // Supabase için snake_case
+      return {
+        'id': note.id,
+        'motivation_id': note.motivationId,
+        'date': note.date.toIso8601String(),
+        'note': note.note,
+        'mood': note.mood,
+        'tags': note.tags.join(','),
+        'completed': completed ? 1 : 0,
+        'minutes_spent': minutesSpent,
+      };
+    }
+    
+    // Local database için camelCase
     return {
       'id': note.id,
       'motivationId': note.motivationId,
@@ -499,13 +631,21 @@ class DatabaseService {
   }
 
   static DailyNote _noteFromMap(Map<String, dynamic> map) {
+    // Supabase'den gelen data snake_case olabilir
+    final id = map['id']?.toString() ?? '';
+    final motivationId = map['motivationId'] ?? map['motivation_id'] ?? '';
+    final dateStr = map['date']?.toString() ?? DateTime.now().toIso8601String();
+    final note = map['note']?.toString() ?? '';
+    final mood = (map['mood'] ?? 3) as int;
+    final tagsStr = map['tags']?.toString() ?? '';
+    
     return DailyNote(
-      id: map['id'],
-      motivationId: map['motivationId'],
-      date: DateTime.parse(map['date']),
-      note: map['note'],
-      mood: map['mood'],
-      tags: map['tags'] != null ? map['tags'].split(',') : [],
+      id: id,
+      motivationId: motivationId.toString(),
+      date: DateTime.parse(dateStr),
+      note: note,
+      mood: mood,
+      tags: tagsStr.isNotEmpty ? tagsStr.split(',') : [],
     );
   }
 }
