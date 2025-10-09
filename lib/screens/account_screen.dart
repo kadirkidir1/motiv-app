@@ -736,18 +736,39 @@ class _AccountScreenState extends State<AccountScreen> {
   }
 
   Future<void> _manageSubscription() async {
-    try {
-      await RevenueCatService.showManagementScreen();
-    } catch (e) {
+    final isPremium = await SubscriptionService.isPremium();
+    
+    if (!isPremium) {
+      // Premium değilse premium ekranına yönlendir
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(_languageCode == 'tr' ? 'Abonelik yönetimi açılamadı' : 'Could not open subscription management'),
-            backgroundColor: Colors.red,
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => PremiumScreen(languageCode: _languageCode),
           ),
         );
       }
+      return;
     }
+    
+    // Premium ise Google Play'e yönlendir
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(_languageCode == 'tr' ? 'Aboneliği Yönet' : 'Manage Subscription'),
+        content: Text(
+          _languageCode == 'tr'
+              ? 'Aboneliğinizi yönetmek için Google Play Store > Hesap > Ödemeler ve abonelikler bölümüne gidin.'
+              : 'To manage your subscription, go to Google Play Store > Account > Payments & subscriptions.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(_languageCode == 'tr' ? 'Tamam' : 'OK'),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _deleteAccount() async {

@@ -174,7 +174,7 @@ class PremiumScreen extends StatelessWidget {
                   ),
                 ),
                 Text(
-                  '72',
+                  '100',
                   style: TextStyle(
                     fontSize: 48,
                     fontWeight: FontWeight.bold,
@@ -197,7 +197,7 @@ class PremiumScreen extends StatelessWidget {
             ),
             const SizedBox(height: 4),
             Text(
-              isTurkish ? 'Sadece ayda ₺6' : 'Only ₺6/month',
+              isTurkish ? 'Sadece ayda ₺8.33' : 'Only ₺8.33/month',
               style: TextStyle(
                 fontSize: 14,
                 color: Colors.green.shade700,
@@ -229,8 +229,8 @@ class PremiumScreen extends StatelessWidget {
             const SizedBox(height: 12),
             Text(
               isTurkish
-                  ? 'İlk 30 gün ücretsiz! İstediğin zaman iptal et.'
-                  : 'First 30 days free! Cancel anytime.',
+                  ? 'İlk 1 ay ücretsiz! İstediğin zaman iptal et.'
+                  : 'First month free! Cancel anytime.',
               style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
               textAlign: TextAlign.center,
             ),

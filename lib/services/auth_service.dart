@@ -21,7 +21,16 @@ class AuthService {
         if (response.user!.emailConfirmedAt != null) {
           throw Exception('Bu email adresi zaten kayıtlı. Lütfen giriş yapın.');
         }
-        // User created successfully, email verification required
+        
+        // Yeni kullanıcıya 1 ay ücretsiz premium ver
+        final premiumUntil = DateTime.now().add(const Duration(days: 30));
+        await _supabase.from('user_profiles').upsert({
+          'user_id': response.user!.id,
+          'email': email,
+          'subscription_type': 'premium',
+          'premium_until': premiumUntil.toIso8601String(),
+        });
+        
         return;
       } else {
         throw Exception('Kayıt başarısız oldu');
@@ -101,11 +110,31 @@ class AuthService {
         throw Exception('Google token alınamadı');
       }
 
-      await _supabase.auth.signInWithIdToken(
+      final response = await _supabase.auth.signInWithIdToken(
         provider: OAuthProvider.google,
         idToken: idToken,
         accessToken: accessToken,
       );
+      
+      // Yeni kullanıcı kontrolü - eğer profil yoksa 1 ay premium ver
+      if (response.user != null) {
+        final profile = await _supabase
+            .from('user_profiles')
+            .select()
+            .eq('user_id', response.user!.id)
+            .maybeSingle();
+        
+        if (profile == null) {
+          // Yeni kullanıcı, 1 ay ücretsiz premium ver
+          final premiumUntil = DateTime.now().add(const Duration(days: 30));
+          await _supabase.from('user_profiles').insert({
+            'user_id': response.user!.id,
+            'email': response.user!.email,
+            'subscription_type': 'premium',
+            'premium_until': premiumUntil.toIso8601String(),
+          });
+        }
+      }
 
       await DatabaseService.syncFromCloud();
     } catch (e) {
