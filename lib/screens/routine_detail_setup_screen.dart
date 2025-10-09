@@ -1,29 +1,29 @@
 import 'package:flutter/material.dart';
-import '../models/motivation.dart';
+import '../models/routine.dart';
 import '../services/language_service.dart';
 
-class MotivationDetailSetupScreen extends StatefulWidget {
+class RoutineDetailSetupScreen extends StatefulWidget {
   final Map<String, dynamic> baseMotivation;
   final String languageCode;
 
-  const MotivationDetailSetupScreen({
+  const RoutineDetailSetupScreen({
     super.key,
     required this.baseMotivation,
     this.languageCode = 'tr',
   });
 
   @override
-  State<MotivationDetailSetupScreen> createState() => _MotivationDetailSetupScreenState();
+  State<RoutineDetailSetupScreen> createState() => _RoutineDetailSetupScreenState();
 }
 
-class _MotivationDetailSetupScreenState extends State<MotivationDetailSetupScreen> {
+class _RoutineDetailSetupScreenState extends State<RoutineDetailSetupScreen> {
   final _formKey = GlobalKey<FormState>();
   final _targetMinutesController = TextEditingController();
   final _notesController = TextEditingController();
 
   String? selectedSubType;
   List<String> selectedDays = [];
-  MotivationFrequency selectedFrequency = MotivationFrequency.daily;
+  RoutineFrequency selectedFrequency = RoutineFrequency.daily;
   bool hasAlarm = false;
   TimeOfDay? alarmTime;
   String _currentLanguageCode = 'tr';
@@ -82,7 +82,7 @@ class _MotivationDetailSetupScreenState extends State<MotivationDetailSetupScree
               const SizedBox(height: 20),
               _buildFrequencySelection(),
               const SizedBox(height: 20),
-              if (selectedFrequency == MotivationFrequency.weekly) _buildDaySelection(),
+              if (selectedFrequency == RoutineFrequency.weekly) _buildDaySelection(),
               _buildTargetTime(),
               const SizedBox(height: 20),
               _buildAlarmSettings(),
@@ -182,7 +182,7 @@ class _MotivationDetailSetupScreenState extends State<MotivationDetailSetupScree
         ),
         const SizedBox(height: 12),
         Row(
-          children: MotivationFrequency.values.map((frequency) {
+          children: RoutineFrequency.values.map((frequency) {
             return Expanded(
               child: Padding(
                 padding: const EdgeInsets.only(right: 8),
@@ -193,7 +193,7 @@ class _MotivationDetailSetupScreenState extends State<MotivationDetailSetupScree
                     if (selected) {
                       setState(() {
                         selectedFrequency = frequency;
-                        if (frequency != MotivationFrequency.weekly) {
+                        if (frequency != RoutineFrequency.weekly) {
                           selectedDays.clear();
                         }
                       });
@@ -372,7 +372,7 @@ class _MotivationDetailSetupScreenState extends State<MotivationDetailSetupScree
 
   void _saveMotivation() {
     if (_formKey.currentState!.validate()) {
-      if (selectedFrequency == MotivationFrequency.weekly && selectedDays.isEmpty) {
+      if (selectedFrequency == RoutineFrequency.weekly && selectedDays.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(AppLocalizations.get('select_day', _currentLanguageCode))),
         );
@@ -385,7 +385,7 @@ class _MotivationDetailSetupScreenState extends State<MotivationDetailSetupScree
 
       final detailedDescription = _buildDetailedDescription();
 
-      final motivation = Motivation(
+      final motivation = Routine(
         id: DateTime.now().millisecondsSinceEpoch.toString(),
         title: detailedTitle,
         description: detailedDescription,
@@ -410,7 +410,7 @@ class _MotivationDetailSetupScreenState extends State<MotivationDetailSetupScree
     
     description += ' - ${_targetMinutesController.text} ${AppLocalizations.get('minutes', _currentLanguageCode)}';
     
-    if (selectedFrequency == MotivationFrequency.weekly && selectedDays.isNotEmpty) {
+    if (selectedFrequency == RoutineFrequency.weekly && selectedDays.isNotEmpty) {
       description += ' - ${selectedDays.join(', ')}';
     }
     
@@ -421,36 +421,36 @@ class _MotivationDetailSetupScreenState extends State<MotivationDetailSetupScree
     return description;
   }
 
-  Color _getCategoryColor(MotivationCategory category) {
+  Color _getCategoryColor(RoutineCategory category) {
     switch (category) {
-      case MotivationCategory.spiritual:
+      case RoutineCategory.spiritual:
         return Colors.green.shade600;
-      case MotivationCategory.education:
+      case RoutineCategory.education:
         return Colors.blue.shade600;
-      case MotivationCategory.health:
+      case RoutineCategory.health:
         return Colors.orange.shade600;
-      case MotivationCategory.household:
+      case RoutineCategory.household:
         return Colors.brown.shade600;
-      case MotivationCategory.selfCare:
+      case RoutineCategory.selfCare:
         return Colors.pink.shade600;
-      case MotivationCategory.social:
+      case RoutineCategory.social:
         return Colors.teal.shade600;
-      case MotivationCategory.hobby:
+      case RoutineCategory.hobby:
         return Colors.indigo.shade600;
-      case MotivationCategory.career:
+      case RoutineCategory.career:
         return Colors.deepOrange.shade600;
-      case MotivationCategory.personal:
+      case RoutineCategory.personal:
         return Colors.purple.shade600;
     }
   }
 
-  String _getFrequencyName(MotivationFrequency frequency) {
+  String _getFrequencyName(RoutineFrequency frequency) {
     switch (frequency) {
-      case MotivationFrequency.daily:
+      case RoutineFrequency.daily:
         return AppLocalizations.get('daily', _currentLanguageCode);
-      case MotivationFrequency.weekly:
+      case RoutineFrequency.weekly:
         return AppLocalizations.get('weekly', _currentLanguageCode);
-      case MotivationFrequency.monthly:
+      case RoutineFrequency.monthly:
         return AppLocalizations.get('monthly', _currentLanguageCode);
     }
   }

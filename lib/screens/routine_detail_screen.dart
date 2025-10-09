@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
-import '../models/motivation.dart';
+import '../models/routine.dart';
 import '../models/daily_note.dart';
 import '../services/language_service.dart';
 import '../services/database_service.dart';
 
 class MotivationDetailScreen extends StatefulWidget {
-  final Motivation motivation;
+  final Routine motivation;
 
   const MotivationDetailScreen({
     super.key,
@@ -13,11 +13,11 @@ class MotivationDetailScreen extends StatefulWidget {
   });
 
   @override
-  State<MotivationDetailScreen> createState() => _MotivationDetailScreenState();
+  State<MotivationDetailScreen> createState() => _RoutineDetailScreenState();
 }
 
-class _MotivationDetailScreenState extends State<MotivationDetailScreen> {
-  List<MotivationProgress> progressList = [];
+class _RoutineDetailScreenState extends State<MotivationDetailScreen> {
+  List<RoutineProgress> progressList = [];
   List<DailyNote> dailyNotes = [];
   String selectedPeriod = '';
   String _languageCode = 'tr';
@@ -52,15 +52,15 @@ class _MotivationDetailScreenState extends State<MotivationDetailScreen> {
       }
       
       // Son 30 günün progress verilerini oluştur
-      final List<MotivationProgress> newProgressList = [];
+      final List<RoutineProgress> newProgressList = [];
       for (int i = 29; i >= 0; i--) {
         final date = now.subtract(Duration(days: i));
         final dateKey = '${date.year}-${date.month}-${date.day}';
         final note = notesByDate[dateKey];
         
         final minutes = note != null ? await _getMinutesFromNote(note) : 0;
-        newProgressList.add(MotivationProgress(
-          motivationId: widget.motivation.id,
+        newProgressList.add(RoutineProgress(
+          routineId: widget.motivation.id,
           date: date,
           completed: note != null && minutes > 0,
           minutesSpent: minutes,
@@ -95,12 +95,12 @@ class _MotivationDetailScreenState extends State<MotivationDetailScreen> {
     return 0;
   }
   
-  List<MotivationProgress> _generateEmptyProgress() {
+  List<RoutineProgress> _generateEmptyProgress() {
     final now = DateTime.now();
     return List.generate(30, (index) {
       final date = now.subtract(Duration(days: 29 - index));
-      return MotivationProgress(
-        motivationId: widget.motivation.id,
+      return RoutineProgress(
+        routineId: widget.motivation.id,
         date: date,
         completed: false,
         minutesSpent: 0,
@@ -567,7 +567,7 @@ class _MotivationDetailScreenState extends State<MotivationDetailScreen> {
                   
                   final note = DailyNote(
                     id: DateTime.now().millisecondsSinceEpoch.toString(),
-                    motivationId: widget.motivation.id,
+                    routineId: widget.motivation.id,
                     date: DateTime.now(),
                     note: noteController.text,
                     mood: selectedMood,
@@ -641,7 +641,7 @@ class _MotivationDetailScreenState extends State<MotivationDetailScreen> {
               
               final note = DailyNote(
                 id: DateTime.now().millisecondsSinceEpoch.toString(),
-                motivationId: widget.motivation.id,
+                routineId: widget.motivation.id,
                 date: DateTime.now(),
                 note: 'Tamamlandı',
                 mood: 4, // İyi ruh hali
@@ -744,7 +744,7 @@ class _MotivationDetailScreenState extends State<MotivationDetailScreen> {
     );
   }
   
-  void _showDayDetails(MotivationProgress progress) {
+  void _showDayDetails(RoutineProgress progress) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -810,67 +810,133 @@ class _MotivationDetailScreenState extends State<MotivationDetailScreen> {
     return '${date.day}/${date.month}/${date.year}';
   }
 
-  void _editMotivation() {
+  void _editMotivation() async {
     final targetMinutesController = TextEditingController(
       text: widget.motivation.targetMinutes.toString(),
     );
+    bool hasAlarm = widget.motivation.hasAlarm;
+    TimeOfDay? alarmTime = widget.motivation.alarmTime;
+    bool isTimeBased = widget.motivation.isTimeBased;
     
-    showDialog(
+    final result = await showDialog<Routine>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text(_languageCode == 'tr' ? 'Motivasyonu Düzenle' : 'Edit Motivation'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: targetMinutesController,
-              decoration: InputDecoration(
-                labelText: AppLocalizations.get('target_time', _languageCode),
-                border: const OutlineInputBorder(),
-                suffixText: AppLocalizations.get('minutes', _languageCode),
-              ),
-              keyboardType: TextInputType.number,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: Text(_languageCode == 'tr' ? 'Motivasyonu Düzenle' : 'Edit Routine'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SwitchListTile(
+                  title: Text(_languageCode == 'tr' ? 'Zamanlı Motivasyon' : 'Time-Based Routine'),
+                  subtitle: Text(_languageCode == 'tr' ? 'Kapalıysa sadece tamamlandı/tamamlanmadı sorar' : 'If off, only asks completed/not completed'),
+                  value: isTimeBased,
+                  onChanged: (value) {
+                    setDialogState(() {
+                      isTimeBased = value;
+                      if (!value) {
+                        targetMinutesController.text = '0';
+                      }
+                    });
+                  },
+                ),
+                const SizedBox(height: 16),
+                if (isTimeBased)
+                  TextField(
+                    controller: targetMinutesController,
+                    decoration: InputDecoration(
+                      labelText: AppLocalizations.get('target_time', _languageCode),
+                      border: const OutlineInputBorder(),
+                      suffixText: AppLocalizations.get('minutes', _languageCode),
+                    ),
+                    keyboardType: TextInputType.number,
+                  ),
+                const SizedBox(height: 16),
+                SwitchListTile(
+                  title: Text(_languageCode == 'tr' ? 'Bildirim Ekle' : 'Add Notification'),
+                  value: hasAlarm,
+                  onChanged: (value) {
+                    setDialogState(() {
+                      hasAlarm = value;
+                      if (value && alarmTime == null) {
+                        alarmTime = const TimeOfDay(hour: 9, minute: 0);
+                      }
+                    });
+                  },
+                ),
+                if (hasAlarm) ...[
+                  const SizedBox(height: 8),
+                  ListTile(
+                    title: Text(_languageCode == 'tr' ? 'Bildirim Saati' : 'Notification Time'),
+                    subtitle: Text(alarmTime != null ? '${alarmTime!.hour.toString().padLeft(2, '0')}:${alarmTime!.minute.toString().padLeft(2, '0')}' : '--:--'),
+                    trailing: const Icon(Icons.access_time),
+                    onTap: () async {
+                      final time = await showTimePicker(
+                        context: context,
+                        initialTime: alarmTime ?? const TimeOfDay(hour: 9, minute: 0),
+                      );
+                      if (time != null) {
+                        setDialogState(() {
+                          alarmTime = time;
+                        });
+                      }
+                    },
+                  ),
+                ],
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text(AppLocalizations.get('cancel', _languageCode)),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                final newTargetMinutes = isTimeBased ? (int.tryParse(targetMinutesController.text) ?? widget.motivation.targetMinutes) : 0;
+                
+                final updatedMotivation = widget.motivation.copyWith(
+                  targetMinutes: newTargetMinutes,
+                  hasAlarm: hasAlarm,
+                  alarmTime: hasAlarm ? alarmTime : null,
+                  isTimeBased: isTimeBased,
+                );
+                
+                final navigator = Navigator.of(context);
+                final messenger = ScaffoldMessenger.of(context);
+                
+                try {
+                  await DatabaseService.updateRoutine(updatedMotivation);
+                  
+                  // Dialog'u kapat ve güncellenmiş motivation'ı döndür
+                  navigator.pop(updatedMotivation);
+                  
+                  if (mounted) {
+                    messenger.showSnackBar(
+                      SnackBar(content: Text(_languageCode == 'tr' ? 'Motivasyon güncellendi' : 'Routine updated')),
+                    );
+                  }
+                } catch (e) {
+                  navigator.pop();
+                  if (mounted) {
+                    messenger.showSnackBar(
+                      SnackBar(content: Text(AppLocalizations.get('error_occurred', _languageCode))),
+                    );
+                  }
+                }
+              },
+              child: Text(AppLocalizations.get('save', _languageCode)),
             ),
           ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(AppLocalizations.get('cancel', _languageCode)),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              final newTargetMinutes = int.tryParse(targetMinutesController.text) ?? widget.motivation.targetMinutes;
-              
-              final updatedMotivation = widget.motivation.copyWith(
-                targetMinutes: newTargetMinutes,
-              );
-              
-              final navigator = Navigator.of(context);
-              final messenger = ScaffoldMessenger.of(context);
-              
-              try {
-                await DatabaseService.updateMotivation(updatedMotivation);
-                navigator.pop();
-                navigator.pop(true);
-                if (mounted) {
-                  messenger.showSnackBar(
-                    SnackBar(content: Text(_languageCode == 'tr' ? 'Motivasyon güncellendi' : 'Motivation updated')),
-                  );
-                }
-              } catch (e) {
-                navigator.pop();
-                if (mounted) {
-                  messenger.showSnackBar(
-                    SnackBar(content: Text(AppLocalizations.get('error_occurred', _languageCode))),
-                  );
-                }
-              }
-            },
-            child: Text(AppLocalizations.get('save', _languageCode)),
-          ),
-        ],
       ),
     );
+    
+    // Dialog'dan dönen güncellenmiş motivation varsa widget'ı güncelle
+    if (result != null && mounted) {
+      setState(() {
+        // Widget yeniden build edilecek ve yeni değerler görünecek
+      });
+    }
   }
 }

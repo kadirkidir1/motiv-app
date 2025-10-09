@@ -25,12 +25,39 @@ void main() async {
   runApp(const MotivApp());
 }
 
-class MotivApp extends StatelessWidget {
+class MotivApp extends StatefulWidget {
   const MotivApp({super.key});
+
+  @override
+  State<MotivApp> createState() => _MotivAppState();
+}
+
+class _MotivAppState extends State<MotivApp> {
+  final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+
+  @override
+  void initState() {
+    super.initState();
+    _listenToNotifications();
+  }
+
+  void _listenToNotifications() {
+    NotificationService.notificationStream.listen((payload) {
+      // Bildirime tıklandığında ilgili ekrana git
+      if (payload.startsWith('task_')) {
+        // Task ekranına git
+        navigatorKey.currentState?.pushNamed('/tasks');
+      } else if (payload.startsWith('motivation_') || payload.startsWith('routine_')) {
+        // Rutin ekranına git
+        navigatorKey.currentState?.pushNamed('/home');
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      navigatorKey: navigatorKey,
       title: 'Motiv App',
       theme: ThemeData(
         primarySwatch: Colors.blue,

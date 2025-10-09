@@ -67,12 +67,22 @@ class AlarmReceiver : BroadcastReceiver() {
         
         createNotificationChannel(context)
         
+        // Bildirime tıklayınca uygulamayı aç
+        val appIntent = context.packageManager.getLaunchIntentForPackage(context.packageName)
+        val pendingIntent = PendingIntent.getActivity(
+            context,
+            0,
+            appIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        
         val notification = NotificationCompat.Builder(context, "alarm_channel")
             .setSmallIcon(android.R.drawable.ic_dialog_info)
             .setContentTitle(title)
             .setContentText(body)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setAutoCancel(true)
+            .setContentIntent(pendingIntent)
             .build()
 
         NotificationManagerCompat.from(context).notify(System.currentTimeMillis().toInt(), notification)

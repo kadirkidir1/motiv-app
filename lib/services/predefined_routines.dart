@@ -1,99 +1,99 @@
 import 'package:flutter/material.dart';
-import '../models/motivation.dart';
+import '../models/routine.dart';
 
-class PredefinedMotivations {
-  static List<Map<String, dynamic>> getMotivations(String languageCode) {
+class PredefinedRoutines {
+  static List<Map<String, dynamic>> getRoutines(String languageCode) {
     final motivations = [
       // Manevi
-      {'key': 'prayer_5', 'category': MotivationCategory.spiritual, 'icon': Icons.mosque},
-      {'key': 'quran_reading', 'category': MotivationCategory.spiritual, 'icon': Icons.menu_book},
-      {'key': 'prayer_dua', 'category': MotivationCategory.spiritual, 'icon': Icons.favorite},
-      {'key': 'dhikr', 'category': MotivationCategory.spiritual, 'icon': Icons.circle},
-      {'key': 'meditation', 'category': MotivationCategory.spiritual, 'icon': Icons.self_improvement},
-      {'key': 'istighfar', 'category': MotivationCategory.spiritual, 'icon': Icons.healing},
-      {'key': 'charity', 'category': MotivationCategory.spiritual, 'icon': Icons.volunteer_activism},
+      {'key': 'prayer_5', 'category': RoutineCategory.spiritual, 'icon': Icons.mosque},
+      {'key': 'quran_reading', 'category': RoutineCategory.spiritual, 'icon': Icons.menu_book},
+      {'key': 'prayer_dua', 'category': RoutineCategory.spiritual, 'icon': Icons.favorite},
+      {'key': 'dhikr', 'category': RoutineCategory.spiritual, 'icon': Icons.circle},
+      {'key': 'meditation', 'category': RoutineCategory.spiritual, 'icon': Icons.self_improvement},
+      {'key': 'istighfar', 'category': RoutineCategory.spiritual, 'icon': Icons.healing},
+      {'key': 'charity', 'category': RoutineCategory.spiritual, 'icon': Icons.volunteer_activism},
       
       // Eğitim
-      {'key': 'english_study', 'category': MotivationCategory.education, 'icon': Icons.language},
-      {'key': 'book_reading', 'category': MotivationCategory.education, 'icon': Icons.book},
-      {'key': 'podcast', 'category': MotivationCategory.education, 'icon': Icons.headphones},
-      {'key': 'online_course', 'category': MotivationCategory.education, 'icon': Icons.computer},
-      {'key': 'writing', 'category': MotivationCategory.education, 'icon': Icons.edit},
-      {'key': 'news_reading', 'category': MotivationCategory.education, 'icon': Icons.newspaper},
-      {'key': 'documentary', 'category': MotivationCategory.education, 'icon': Icons.movie},
-      {'key': 'skill_practice', 'category': MotivationCategory.education, 'icon': Icons.psychology},
-      {'key': 'language_practice', 'category': MotivationCategory.education, 'icon': Icons.translate},
-      {'key': 'research', 'category': MotivationCategory.education, 'icon': Icons.search},
+      {'key': 'english_study', 'category': RoutineCategory.education, 'icon': Icons.language},
+      {'key': 'book_reading', 'category': RoutineCategory.education, 'icon': Icons.book},
+      {'key': 'podcast', 'category': RoutineCategory.education, 'icon': Icons.headphones},
+      {'key': 'online_course', 'category': RoutineCategory.education, 'icon': Icons.computer},
+      {'key': 'writing', 'category': RoutineCategory.education, 'icon': Icons.edit},
+      {'key': 'news_reading', 'category': RoutineCategory.education, 'icon': Icons.newspaper},
+      {'key': 'documentary', 'category': RoutineCategory.education, 'icon': Icons.movie},
+      {'key': 'skill_practice', 'category': RoutineCategory.education, 'icon': Icons.psychology},
+      {'key': 'language_practice', 'category': RoutineCategory.education, 'icon': Icons.translate},
+      {'key': 'research', 'category': RoutineCategory.education, 'icon': Icons.search},
       
       // Sağlık
-      {'key': 'exercise', 'category': MotivationCategory.health, 'icon': Icons.fitness_center},
-      {'key': 'teeth_brushing', 'category': MotivationCategory.health, 'icon': Icons.clean_hands},
-      {'key': 'walking', 'category': MotivationCategory.health, 'icon': Icons.directions_walk},
-      {'key': 'water_drinking', 'category': MotivationCategory.health, 'icon': Icons.local_drink},
-      {'key': 'early_sleep', 'category': MotivationCategory.health, 'icon': Icons.bedtime},
-      {'key': 'early_wake', 'category': MotivationCategory.health, 'icon': Icons.wb_sunny},
-      {'key': 'vitamins', 'category': MotivationCategory.health, 'icon': Icons.medication},
-      {'key': 'breathing', 'category': MotivationCategory.health, 'icon': Icons.air},
-      {'key': 'stretching', 'category': MotivationCategory.health, 'icon': Icons.accessibility_new},
-      {'key': 'healthy_eating', 'category': MotivationCategory.health, 'icon': Icons.restaurant},
-      {'key': 'yoga', 'category': MotivationCategory.health, 'icon': Icons.spa},
-      {'key': 'running', 'category': MotivationCategory.health, 'icon': Icons.directions_run},
-      {'key': 'cycling', 'category': MotivationCategory.health, 'icon': Icons.directions_bike},
-      {'key': 'swimming', 'category': MotivationCategory.health, 'icon': Icons.pool},
+      {'key': 'exercise', 'category': RoutineCategory.health, 'icon': Icons.fitness_center},
+      {'key': 'teeth_brushing', 'category': RoutineCategory.health, 'icon': Icons.clean_hands},
+      {'key': 'walking', 'category': RoutineCategory.health, 'icon': Icons.directions_walk},
+      {'key': 'water_drinking', 'category': RoutineCategory.health, 'icon': Icons.local_drink},
+      {'key': 'early_sleep', 'category': RoutineCategory.health, 'icon': Icons.bedtime},
+      {'key': 'early_wake', 'category': RoutineCategory.health, 'icon': Icons.wb_sunny},
+      {'key': 'vitamins', 'category': RoutineCategory.health, 'icon': Icons.medication},
+      {'key': 'breathing', 'category': RoutineCategory.health, 'icon': Icons.air},
+      {'key': 'stretching', 'category': RoutineCategory.health, 'icon': Icons.accessibility_new},
+      {'key': 'healthy_eating', 'category': RoutineCategory.health, 'icon': Icons.restaurant},
+      {'key': 'yoga', 'category': RoutineCategory.health, 'icon': Icons.spa},
+      {'key': 'running', 'category': RoutineCategory.health, 'icon': Icons.directions_run},
+      {'key': 'cycling', 'category': RoutineCategory.health, 'icon': Icons.directions_bike},
+      {'key': 'swimming', 'category': RoutineCategory.health, 'icon': Icons.pool},
       
       // Ev İşleri
-      {'key': 'daily_cleaning', 'category': MotivationCategory.household, 'icon': Icons.cleaning_services},
-      {'key': 'trash_out', 'category': MotivationCategory.household, 'icon': Icons.delete},
-      {'key': 'sweep_house', 'category': MotivationCategory.household, 'icon': Icons.home_repair_service},
-      {'key': 'wash_dishes', 'category': MotivationCategory.household, 'icon': Icons.kitchen},
-      {'key': 'laundry', 'category': MotivationCategory.household, 'icon': Icons.local_laundry_service},
-      {'key': 'make_bed', 'category': MotivationCategory.household, 'icon': Icons.bed},
-      {'key': 'vacuum_clean', 'category': MotivationCategory.household, 'icon': Icons.cleaning_services},
-      {'key': 'bathroom_clean', 'category': MotivationCategory.household, 'icon': Icons.bathroom},
-      {'key': 'kitchen_clean', 'category': MotivationCategory.household, 'icon': Icons.countertops},
-      {'key': 'organize_closet', 'category': MotivationCategory.household, 'icon': Icons.checkroom},
-      {'key': 'iron_clothes', 'category': MotivationCategory.household, 'icon': Icons.iron},
-      {'key': 'grocery_shopping', 'category': MotivationCategory.household, 'icon': Icons.shopping_basket},
+      {'key': 'daily_cleaning', 'category': RoutineCategory.household, 'icon': Icons.cleaning_services},
+      {'key': 'trash_out', 'category': RoutineCategory.household, 'icon': Icons.delete},
+      {'key': 'sweep_house', 'category': RoutineCategory.household, 'icon': Icons.home_repair_service},
+      {'key': 'wash_dishes', 'category': RoutineCategory.household, 'icon': Icons.kitchen},
+      {'key': 'laundry', 'category': RoutineCategory.household, 'icon': Icons.local_laundry_service},
+      {'key': 'make_bed', 'category': RoutineCategory.household, 'icon': Icons.bed},
+      {'key': 'vacuum_clean', 'category': RoutineCategory.household, 'icon': Icons.cleaning_services},
+      {'key': 'bathroom_clean', 'category': RoutineCategory.household, 'icon': Icons.bathroom},
+      {'key': 'kitchen_clean', 'category': RoutineCategory.household, 'icon': Icons.countertops},
+      {'key': 'organize_closet', 'category': RoutineCategory.household, 'icon': Icons.checkroom},
+      {'key': 'iron_clothes', 'category': RoutineCategory.household, 'icon': Icons.iron},
+      {'key': 'grocery_shopping', 'category': RoutineCategory.household, 'icon': Icons.shopping_basket},
       
       // Kişisel Bakım
-      {'key': 'shower', 'category': MotivationCategory.selfCare, 'icon': Icons.shower},
-      {'key': 'skin_care', 'category': MotivationCategory.selfCare, 'icon': Icons.face},
-      {'key': 'hair_care', 'category': MotivationCategory.selfCare, 'icon': Icons.content_cut},
-      {'key': 'nail_care', 'category': MotivationCategory.selfCare, 'icon': Icons.back_hand},
-      {'key': 'moisturize', 'category': MotivationCategory.selfCare, 'icon': Icons.spa},
-      {'key': 'sunscreen', 'category': MotivationCategory.selfCare, 'icon': Icons.wb_sunny},
+      {'key': 'shower', 'category': RoutineCategory.selfCare, 'icon': Icons.shower},
+      {'key': 'skin_care', 'category': RoutineCategory.selfCare, 'icon': Icons.face},
+      {'key': 'hair_care', 'category': RoutineCategory.selfCare, 'icon': Icons.content_cut},
+      {'key': 'nail_care', 'category': RoutineCategory.selfCare, 'icon': Icons.back_hand},
+      {'key': 'moisturize', 'category': RoutineCategory.selfCare, 'icon': Icons.spa},
+      {'key': 'sunscreen', 'category': RoutineCategory.selfCare, 'icon': Icons.wb_sunny},
       
       // Sosyal
-      {'key': 'family_call', 'category': MotivationCategory.social, 'icon': Icons.family_restroom},
-      {'key': 'friends_chat', 'category': MotivationCategory.social, 'icon': Icons.people},
-      {'key': 'visit_relatives', 'category': MotivationCategory.social, 'icon': Icons.home},
-      {'key': 'help_neighbor', 'category': MotivationCategory.social, 'icon': Icons.handshake},
-      {'key': 'community_service', 'category': MotivationCategory.social, 'icon': Icons.volunteer_activism},
+      {'key': 'family_call', 'category': RoutineCategory.social, 'icon': Icons.family_restroom},
+      {'key': 'friends_chat', 'category': RoutineCategory.social, 'icon': Icons.people},
+      {'key': 'visit_relatives', 'category': RoutineCategory.social, 'icon': Icons.home},
+      {'key': 'help_neighbor', 'category': RoutineCategory.social, 'icon': Icons.handshake},
+      {'key': 'community_service', 'category': RoutineCategory.social, 'icon': Icons.volunteer_activism},
       
       // Hobi
-      {'key': 'music_listen', 'category': MotivationCategory.hobby, 'icon': Icons.music_note},
-      {'key': 'photography', 'category': MotivationCategory.hobby, 'icon': Icons.camera_alt},
-      {'key': 'gardening', 'category': MotivationCategory.hobby, 'icon': Icons.grass},
-      {'key': 'cooking', 'category': MotivationCategory.hobby, 'icon': Icons.restaurant_menu},
-      {'key': 'drawing', 'category': MotivationCategory.hobby, 'icon': Icons.brush},
-      {'key': 'crafting', 'category': MotivationCategory.hobby, 'icon': Icons.build},
-      {'key': 'gaming', 'category': MotivationCategory.hobby, 'icon': Icons.sports_esports},
-      {'key': 'fishing', 'category': MotivationCategory.hobby, 'icon': Icons.phishing},
+      {'key': 'music_listen', 'category': RoutineCategory.hobby, 'icon': Icons.music_note},
+      {'key': 'photography', 'category': RoutineCategory.hobby, 'icon': Icons.camera_alt},
+      {'key': 'gardening', 'category': RoutineCategory.hobby, 'icon': Icons.grass},
+      {'key': 'cooking', 'category': RoutineCategory.hobby, 'icon': Icons.restaurant_menu},
+      {'key': 'drawing', 'category': RoutineCategory.hobby, 'icon': Icons.brush},
+      {'key': 'crafting', 'category': RoutineCategory.hobby, 'icon': Icons.build},
+      {'key': 'gaming', 'category': RoutineCategory.hobby, 'icon': Icons.sports_esports},
+      {'key': 'fishing', 'category': RoutineCategory.hobby, 'icon': Icons.phishing},
       
       // İş/Kariyer
-      {'key': 'daily_planning', 'category': MotivationCategory.career, 'icon': Icons.schedule},
-      {'key': 'email_check', 'category': MotivationCategory.career, 'icon': Icons.email},
-      {'key': 'networking', 'category': MotivationCategory.career, 'icon': Icons.connect_without_contact},
-      {'key': 'skill_development', 'category': MotivationCategory.career, 'icon': Icons.trending_up},
-      {'key': 'project_work', 'category': MotivationCategory.career, 'icon': Icons.work},
+      {'key': 'daily_planning', 'category': RoutineCategory.career, 'icon': Icons.schedule},
+      {'key': 'email_check', 'category': RoutineCategory.career, 'icon': Icons.email},
+      {'key': 'networking', 'category': RoutineCategory.career, 'icon': Icons.connect_without_contact},
+      {'key': 'skill_development', 'category': RoutineCategory.career, 'icon': Icons.trending_up},
+      {'key': 'project_work', 'category': RoutineCategory.career, 'icon': Icons.work},
       
       // Kişisel Gelişim
-      {'key': 'pay_bills', 'category': MotivationCategory.personal, 'icon': Icons.payment},
-      {'key': 'organize_room', 'category': MotivationCategory.personal, 'icon': Icons.home},
-      {'key': 'tech_break', 'category': MotivationCategory.personal, 'icon': Icons.phone_android},
-      {'key': 'gratitude_journal', 'category': MotivationCategory.personal, 'icon': Icons.favorite},
-      {'key': 'goal_review', 'category': MotivationCategory.personal, 'icon': Icons.flag},
-      {'key': 'car_maintenance', 'category': MotivationCategory.personal, 'icon': Icons.car_repair},
+      {'key': 'pay_bills', 'category': RoutineCategory.personal, 'icon': Icons.payment},
+      {'key': 'organize_room', 'category': RoutineCategory.personal, 'icon': Icons.home},
+      {'key': 'tech_break', 'category': RoutineCategory.personal, 'icon': Icons.phone_android},
+      {'key': 'gratitude_journal', 'category': RoutineCategory.personal, 'icon': Icons.favorite},
+      {'key': 'goal_review', 'category': RoutineCategory.personal, 'icon': Icons.flag},
+      {'key': 'car_maintenance', 'category': RoutineCategory.personal, 'icon': Icons.car_repair},
     ];
     
     return motivations.map((m) => {
@@ -294,12 +294,12 @@ class PredefinedMotivations {
     return titles[languageCode]?[key] ?? titles['en']?[key] ?? key;
   }
   
-  static Map<MotivationCategory, List<Map<String, dynamic>>> getMotivationsByCategory(String languageCode) {
-    final motivations = getMotivations(languageCode);
-    final Map<MotivationCategory, List<Map<String, dynamic>>> categorizedMotivations = {};
+  static Map<RoutineCategory, List<Map<String, dynamic>>> getRoutinesByCategory(String languageCode) {
+    final motivations = getRoutines(languageCode);
+    final Map<RoutineCategory, List<Map<String, dynamic>>> categorizedMotivations = {};
     
     for (final motivation in motivations) {
-      final category = motivation['category'] as MotivationCategory;
+      final category = motivation['category'] as RoutineCategory;
       if (!categorizedMotivations.containsKey(category)) {
         categorizedMotivations[category] = [];
       }
@@ -309,29 +309,29 @@ class PredefinedMotivations {
     return categorizedMotivations;
   }
   
-  static String getCategoryName(MotivationCategory category, String languageCode) {
+  static String getCategoryName(RoutineCategory category, String languageCode) {
     const categoryNames = {
       'tr': {
-        MotivationCategory.spiritual: 'Manevi',
-        MotivationCategory.education: 'Eğitim',
-        MotivationCategory.health: 'Sağlık',
-        MotivationCategory.household: 'Ev İşleri',
-        MotivationCategory.selfCare: 'Kişisel Bakım',
-        MotivationCategory.social: 'Sosyal',
-        MotivationCategory.hobby: 'Hobi',
-        MotivationCategory.career: 'İş/Kariyer',
-        MotivationCategory.personal: 'Kişisel Gelişim',
+        RoutineCategory.spiritual: 'Manevi',
+        RoutineCategory.education: 'Eğitim',
+        RoutineCategory.health: 'Sağlık',
+        RoutineCategory.household: 'Ev İşleri',
+        RoutineCategory.selfCare: 'Kişisel Bakım',
+        RoutineCategory.social: 'Sosyal',
+        RoutineCategory.hobby: 'Hobi',
+        RoutineCategory.career: 'İş/Kariyer',
+        RoutineCategory.personal: 'Kişisel Gelişim',
       },
       'en': {
-        MotivationCategory.spiritual: 'Spiritual',
-        MotivationCategory.education: 'Education',
-        MotivationCategory.health: 'Health',
-        MotivationCategory.household: 'Household',
-        MotivationCategory.selfCare: 'Self Care',
-        MotivationCategory.social: 'Social',
-        MotivationCategory.hobby: 'Hobby',
-        MotivationCategory.career: 'Career',
-        MotivationCategory.personal: 'Personal',
+        RoutineCategory.spiritual: 'Spiritual',
+        RoutineCategory.education: 'Education',
+        RoutineCategory.health: 'Health',
+        RoutineCategory.household: 'Household',
+        RoutineCategory.selfCare: 'Self Care',
+        RoutineCategory.social: 'Social',
+        RoutineCategory.hobby: 'Hobby',
+        RoutineCategory.career: 'Career',
+        RoutineCategory.personal: 'Personal',
       },
     };
     
@@ -528,7 +528,7 @@ class PredefinedMotivations {
     return descriptions[languageCode]?[key] ?? descriptions['en']?[key] ?? key;
   }
   
-  static int getTotalMotivationsCount() {
-    return getMotivations('tr').length;
+  static int getTotalRoutinesCount() {
+    return getRoutines('tr').length;
   }
 }

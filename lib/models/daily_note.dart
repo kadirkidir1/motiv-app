@@ -1,6 +1,6 @@
 class DailyNote {
   final String id;
-  final String motivationId;
+  final String routineId;
   final DateTime date;
   final String note;
   final int mood; // 1-5 arası mood skoru
@@ -8,7 +8,7 @@ class DailyNote {
 
   DailyNote({
     required this.id,
-    required this.motivationId,
+    required this.routineId,
     required this.date,
     required this.note,
     this.mood = 3,
@@ -17,7 +17,7 @@ class DailyNote {
 
   DailyNote copyWith({
     String? id,
-    String? motivationId,
+    String? routineId,
     DateTime? date,
     String? note,
     int? mood,
@@ -25,7 +25,7 @@ class DailyNote {
   }) {
     return DailyNote(
       id: id ?? this.id,
-      motivationId: motivationId ?? this.motivationId,
+      routineId: routineId ?? this.routineId,
       date: date ?? this.date,
       note: note ?? this.note,
       mood: mood ?? this.mood,

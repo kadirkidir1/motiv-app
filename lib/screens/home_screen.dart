@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import '../models/motivation.dart';
-import 'add_motivation_screen.dart';
+import '../models/routine.dart';
+import 'add_routine_screen.dart';
 import 'completed_routines_screen.dart';
-import 'motivation_detail_screen.dart';
+import 'routine_detail_screen.dart';
 import 'dashboard_screen.dart';
 import 'daily_tasks_screen.dart';
 import 'account_screen.dart';
@@ -19,8 +19,8 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  List<Motivation> motivations = [];
-  List<Motivation> completedRoutines = [];
+  List<Routine> motivations = [];
+  List<Routine> completedRoutines = [];
   int _currentIndex = 0;
   String _languageCode = 'tr';
 
@@ -33,7 +33,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _loadMotivations() async {
     try {
-      final loadedMotivations = await DatabaseService.getMotivations();
+      final loadedMotivations = await DatabaseService.getRoutines();
       setState(() {
         motivations = loadedMotivations;
       });
@@ -160,11 +160,11 @@ class _HomeScreenState extends State<HomeScreen> {
           
           final result = await navigator.push(
             MaterialPageRoute(
-              builder: (context) => AddMotivationScreen(languageCode: _languageCode),
+              builder: (context) => AddRoutineScreen(languageCode: _languageCode),
             ),
           );
-          if (result != null && result is Motivation) {
-            await DatabaseService.insertMotivation(result);
+          if (result != null && result is Routine) {
+            await DatabaseService.insertRoutine(result);
             setState(() {
               motivations.add(result);
             });
@@ -362,7 +362,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final completedMotivation = motivation.copyWith(isCompleted: true);
     
     try {
-      await DatabaseService.updateMotivation(completedMotivation);
+      await DatabaseService.updateRoutine(completedMotivation);
       setState(() {
         motivations.removeAt(index);
         completedRoutines.add(completedMotivation);
@@ -384,9 +384,47 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _deleteMotivation(int index) async {
     final motivation = motivations[index];
+    final isTurkish = _languageCode == 'tr';
+    
+    final shouldDelete = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(isTurkish ? 'Rutini Sil' : 'Delete Routine'),
+        content: Text(
+          isTurkish
+              ? 'Bir rutini sildiğinizde, geriye dönük not ve zaman kayıtlarını takvimden de silmek ister misiniz?'
+              : 'When you delete a routine, do you also want to delete past notes and time records from the calendar?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, null),
+            child: Text(isTurkish ? 'İptal' : 'Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text(isTurkish ? 'Hayır, Sadece Rutini Sil' : 'No, Delete Only Routine'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: Text(
+              isTurkish ? 'Evet, Hepsini Sil' : 'Yes, Delete All',
+              style: const TextStyle(color: Colors.white),
+            ),
+          ),
+        ],
+      ),
+    );
+    
+    if (shouldDelete == null) return;
     
     try {
-      await DatabaseService.deleteMotivation(motivation.id);
+      if (shouldDelete) {
+        await DatabaseService.deleteRoutine(motivation.id);
+      } else {
+        await DatabaseService.deleteRoutineOnly(motivation.id);
+      }
+      
       setState(() {
         motivations.removeAt(index);
       });
@@ -405,48 +443,48 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  Color _getCategoryColor(MotivationCategory category) {
+  Color _getCategoryColor(RoutineCategory category) {
     switch (category) {
-      case MotivationCategory.spiritual:
+      case RoutineCategory.spiritual:
         return Colors.green.shade600;
-      case MotivationCategory.education:
+      case RoutineCategory.education:
         return Colors.blue.shade600;
-      case MotivationCategory.health:
+      case RoutineCategory.health:
         return Colors.orange.shade600;
-      case MotivationCategory.household:
+      case RoutineCategory.household:
         return Colors.brown.shade600;
-      case MotivationCategory.selfCare:
+      case RoutineCategory.selfCare:
         return Colors.pink.shade600;
-      case MotivationCategory.social:
+      case RoutineCategory.social:
         return Colors.teal.shade600;
-      case MotivationCategory.hobby:
+      case RoutineCategory.hobby:
         return Colors.indigo.shade600;
-      case MotivationCategory.career:
+      case RoutineCategory.career:
         return Colors.deepOrange.shade600;
-      case MotivationCategory.personal:
+      case RoutineCategory.personal:
         return Colors.purple.shade600;
     }
   }
 
-  IconData _getCategoryIcon(MotivationCategory category) {
+  IconData _getCategoryIcon(RoutineCategory category) {
     switch (category) {
-      case MotivationCategory.spiritual:
+      case RoutineCategory.spiritual:
         return Icons.mosque;
-      case MotivationCategory.education:
+      case RoutineCategory.education:
         return Icons.school;
-      case MotivationCategory.health:
+      case RoutineCategory.health:
         return Icons.health_and_safety;
-      case MotivationCategory.household:
+      case RoutineCategory.household:
         return Icons.home;
-      case MotivationCategory.selfCare:
+      case RoutineCategory.selfCare:
         return Icons.spa;
-      case MotivationCategory.social:
+      case RoutineCategory.social:
         return Icons.people;
-      case MotivationCategory.hobby:
+      case RoutineCategory.hobby:
         return Icons.palette;
-      case MotivationCategory.career:
+      case RoutineCategory.career:
         return Icons.work;
-      case MotivationCategory.personal:
+      case RoutineCategory.personal:
         return Icons.person;
     }
   }
@@ -472,12 +510,12 @@ class _HomeScreenState extends State<HomeScreen> {
       _languageCode = languageCode;
     });
     // Translate existing motivations and reload
-    await DatabaseService.translateExistingMotivations(languageCode);
+    await DatabaseService.translateExistingRoutines(languageCode);
     await _loadMotivations();
   }
 
-  Map<MotivationCategory, List<Motivation>> _groupMotivationsByCategory() {
-    final Map<MotivationCategory, List<Motivation>> grouped = {};
+  Map<RoutineCategory, List<Routine>> _groupMotivationsByCategory() {
+    final Map<RoutineCategory, List<Routine>> grouped = {};
     
     for (final motivation in motivations) {
       if (!grouped.containsKey(motivation.category)) {
@@ -489,36 +527,36 @@ class _HomeScreenState extends State<HomeScreen> {
     return grouped;
   }
   
-  String _getCategoryName(MotivationCategory category) {
+  String _getCategoryName(RoutineCategory category) {
     switch (category) {
-      case MotivationCategory.spiritual:
+      case RoutineCategory.spiritual:
         return AppLocalizations.get('spiritual', _languageCode);
-      case MotivationCategory.education:
+      case RoutineCategory.education:
         return AppLocalizations.get('education', _languageCode);
-      case MotivationCategory.health:
+      case RoutineCategory.health:
         return AppLocalizations.get('health', _languageCode);
-      case MotivationCategory.household:
+      case RoutineCategory.household:
         return AppLocalizations.get('household', _languageCode);
-      case MotivationCategory.selfCare:
+      case RoutineCategory.selfCare:
         return AppLocalizations.get('self_care', _languageCode);
-      case MotivationCategory.social:
+      case RoutineCategory.social:
         return AppLocalizations.get('social', _languageCode);
-      case MotivationCategory.hobby:
+      case RoutineCategory.hobby:
         return AppLocalizations.get('hobby', _languageCode);
-      case MotivationCategory.career:
+      case RoutineCategory.career:
         return AppLocalizations.get('career', _languageCode);
-      case MotivationCategory.personal:
+      case RoutineCategory.personal:
         return AppLocalizations.get('personal', _languageCode);
     }
   }
 
-  String _getFrequencyText(MotivationFrequency frequency) {
+  String _getFrequencyText(RoutineFrequency frequency) {
     switch (frequency) {
-      case MotivationFrequency.daily:
+      case RoutineFrequency.daily:
         return AppLocalizations.get('daily', _languageCode);
-      case MotivationFrequency.weekly:
+      case RoutineFrequency.weekly:
         return AppLocalizations.get('weekly', _languageCode);
-      case MotivationFrequency.monthly:
+      case RoutineFrequency.monthly:
         return AppLocalizations.get('monthly', _languageCode);
     }
   }

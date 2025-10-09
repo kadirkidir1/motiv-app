@@ -3,6 +3,7 @@ import '../models/daily_task.dart';
 import '../services/language_service.dart';
 import '../services/database_service.dart';
 import '../services/subscription_service.dart';
+import '../services/notification_service.dart';
 import 'premium_screen.dart';
 
 class DailyTasksScreen extends StatefulWidget {
@@ -30,8 +31,19 @@ class _DailyTasksScreenState extends State<DailyTasksScreen> {
   Future<void> _loadTasks() async {
     try {
       final loadedTasks = await DatabaseService.getDailyTasks();
+      
+      // Süre kontrolü yap - sadece pending task'lar için
+      for (var task in loadedTasks) {
+        if (task.status == TaskStatus.pending && task.isExpired) {
+          final expiredTask = task.copyWith(status: TaskStatus.expired);
+          await DatabaseService.updateDailyTask(expiredTask);
+        }
+      }
+      
+      // Güncellenmiş task'ları tekrar yükle
+      final updatedTasks = await DatabaseService.getDailyTasks();
       setState(() {
-        tasks = loadedTasks;
+        tasks = updatedTasks;
         isLoading = false;
       });
     } catch (e) {
@@ -247,6 +259,15 @@ class _DailyTasksScreenState extends State<DailyTasksScreen> {
         languageCode: widget.languageCode,
         onTaskAdded: (task) async {
           await DatabaseService.insertDailyTask(task);
+          
+          // Süre dolduğunda bildirim
+          await NotificationService.scheduleTaskExpiration(task.id, task.title, task.expiresAt);
+          
+          // Alarm kurulduysa, belirlenen saatte bildirim
+          if (task.hasAlarm && task.alarmTime != null) {
+            await NotificationService.scheduleTaskReminder(task.id, task.title, task.alarmTime!);
+          }
+          
           setState(() {
             tasks.add(task);
           });
@@ -329,6 +350,7 @@ class _DailyTasksScreenState extends State<DailyTasksScreen> {
   void _updateTaskStatus(DailyTask task, TaskStatus status, bool addToCalendar) async {
     final updatedTask = task.copyWith(status: status, addToCalendar: addToCalendar);
     await DatabaseService.updateDailyTask(updatedTask);
+    await NotificationService.cancelTaskNotification(task.id);
     
     setState(() {
       final index = tasks.indexWhere((t) => t.id == task.id);
@@ -358,6 +380,7 @@ class _DailyTasksScreenState extends State<DailyTasksScreen> {
 
   void _deleteTask(DailyTask task) async {
     await DatabaseService.deleteDailyTask(task.id);
+    await NotificationService.cancelTaskNotification(task.id);
     setState(() {
       tasks.removeWhere((t) => t.id == task.id);
     });
@@ -401,37 +424,67 @@ class _AddTaskDialogState extends State<_AddTaskDialog> {
   final _titleController = TextEditingController();
   final _descriptionController = TextEditingController();
   int _selectedHours = 24;
+  TaskDeadlineType _deadlineType = TaskDeadlineType.hours;
+  DateTime? _selectedDateTime;
+  bool _hasAlarm = false;
+  DateTime? _alarmTime;
 
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
       title: Text(AppLocalizations.get('add_daily_task', widget.languageCode)),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          TextField(
-            controller: _titleController,
-            decoration: InputDecoration(
-              labelText: AppLocalizations.get('task_title', widget.languageCode),
-              border: const OutlineInputBorder(),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: _titleController,
+              decoration: InputDecoration(
+                labelText: AppLocalizations.get('task_title', widget.languageCode),
+                border: const OutlineInputBorder(),
+              ),
             ),
-          ),
-          const SizedBox(height: 16),
-          TextField(
-            controller: _descriptionController,
-            decoration: InputDecoration(
-              labelText: AppLocalizations.get('description', widget.languageCode),
-              border: const OutlineInputBorder(),
+            const SizedBox(height: 16),
+            TextField(
+              controller: _descriptionController,
+              decoration: InputDecoration(
+                labelText: AppLocalizations.get('description', widget.languageCode),
+                border: const OutlineInputBorder(),
+              ),
+              maxLines: 2,
             ),
-            maxLines: 2,
-          ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              Text(AppLocalizations.get('expires_in', widget.languageCode)),
-              const SizedBox(width: 8),
+            const SizedBox(height: 16),
+            DropdownButtonFormField<TaskDeadlineType>(
+              initialValue: _deadlineType,
+              decoration: InputDecoration(
+                labelText: widget.languageCode == 'tr' ? 'Bitiş Zamanı' : 'Deadline Type',
+                border: const OutlineInputBorder(),
+              ),
+              items: [
+                DropdownMenuItem(
+                  value: TaskDeadlineType.hours,
+                  child: Text(widget.languageCode == 'tr' ? 'Kaç saat içinde' : 'Within hours'),
+                ),
+                DropdownMenuItem(
+                  value: TaskDeadlineType.endOfDay,
+                  child: Text(widget.languageCode == 'tr' ? 'Gün sonuna kadar' : 'End of day'),
+                ),
+                DropdownMenuItem(
+                  value: TaskDeadlineType.specificDateTime,
+                  child: Text(widget.languageCode == 'tr' ? 'Belirli tarih/saat' : 'Specific date/time'),
+                ),
+              ],
+              onChanged: (value) {
+                setState(() {
+                  _deadlineType = value!;
+                });
+              },
+            ),
+            const SizedBox(height: 16),
+            if (_deadlineType == TaskDeadlineType.hours)
               DropdownButton<int>(
                 value: _selectedHours,
+                isExpanded: true,
                 items: [1, 2, 6, 12, 24, 48].map((hours) {
                   return DropdownMenuItem(
                     value: hours,
@@ -444,9 +497,38 @@ class _AddTaskDialogState extends State<_AddTaskDialog> {
                   });
                 },
               ),
-            ],
-          ),
-        ],
+            if (_deadlineType == TaskDeadlineType.specificDateTime)
+              ListTile(
+                title: Text(
+                  _selectedDateTime != null
+                      ? '${_selectedDateTime!.day}/${_selectedDateTime!.month}/${_selectedDateTime!.year} ${_selectedDateTime!.hour}:${_selectedDateTime!.minute.toString().padLeft(2, '0')}'
+                      : (widget.languageCode == 'tr' ? 'Tarih ve saat seç' : 'Select date and time'),
+                ),
+                trailing: const Icon(Icons.calendar_today),
+                onTap: _selectDateTime,
+              ),
+            const SizedBox(height: 16),
+            SwitchListTile(
+              title: Text(widget.languageCode == 'tr' ? 'Alarm Kur' : 'Set Alarm'),
+              value: _hasAlarm,
+              onChanged: (value) {
+                setState(() {
+                  _hasAlarm = value;
+                });
+              },
+            ),
+            if (_hasAlarm)
+              ListTile(
+                title: Text(
+                  _alarmTime != null
+                      ? '${_alarmTime!.hour}:${_alarmTime!.minute.toString().padLeft(2, '0')}'
+                      : (widget.languageCode == 'tr' ? 'Alarm saati seç' : 'Select alarm time'),
+                ),
+                trailing: const Icon(Icons.access_time),
+                onTap: _selectAlarmTime,
+              ),
+          ],
+        ),
       ),
       actions: [
         TextButton(
@@ -461,18 +543,70 @@ class _AddTaskDialogState extends State<_AddTaskDialog> {
     );
   }
 
-  void _saveTask() {
+  void _saveTask() async {
     if (_titleController.text.isEmpty) return;
+
+    DateTime expiresAt;
+    switch (_deadlineType) {
+      case TaskDeadlineType.hours:
+        expiresAt = DateTime.now().add(Duration(hours: _selectedHours));
+        break;
+      case TaskDeadlineType.endOfDay:
+        final now = DateTime.now();
+        expiresAt = DateTime(now.year, now.month, now.day, 23, 59);
+        break;
+      case TaskDeadlineType.specificDateTime:
+        if (_selectedDateTime == null) return;
+        expiresAt = _selectedDateTime!;
+        break;
+    }
 
     final task = DailyTask(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
       title: _titleController.text,
       description: _descriptionController.text.isEmpty ? null : _descriptionController.text,
       createdAt: DateTime.now(),
-      expiresAt: DateTime.now().add(Duration(hours: _selectedHours)),
+      expiresAt: expiresAt,
+      hasAlarm: _hasAlarm,
+      alarmTime: _alarmTime,
+      deadlineType: _deadlineType,
     );
 
     widget.onTaskAdded(task);
     Navigator.pop(context);
+  }
+
+  Future<void> _selectDateTime() async {
+    final date = await showDatePicker(
+      context: context,
+      initialDate: DateTime.now(),
+      firstDate: DateTime.now(),
+      lastDate: DateTime.now().add(const Duration(days: 365)),
+    );
+    if (date == null) return;
+
+    if (!mounted) return;
+    final time = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.now(),
+    );
+    if (time == null) return;
+
+    setState(() {
+      _selectedDateTime = DateTime(date.year, date.month, date.day, time.hour, time.minute);
+    });
+  }
+
+  Future<void> _selectAlarmTime() async {
+    final time = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.now(),
+    );
+    if (time == null) return;
+
+    final now = DateTime.now();
+    setState(() {
+      _alarmTime = DateTime(now.year, now.month, now.day, time.hour, time.minute);
+    });
   }
 }

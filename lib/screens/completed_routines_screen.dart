@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import '../models/motivation.dart';
+import '../models/routine.dart';
 import '../services/language_service.dart';
 
 class CompletedRoutinesScreen extends StatefulWidget {
-  final List<Motivation> completedRoutines;
+  final List<Routine> completedRoutines;
 
   const CompletedRoutinesScreen({
     super.key,
@@ -125,25 +125,25 @@ class _CompletedRoutinesScreenState extends State<CompletedRoutinesScreen> {
     );
   }
 
-  String _getCategoryName(MotivationCategory category) {
+  String _getCategoryName(RoutineCategory category) {
     switch (category) {
-      case MotivationCategory.spiritual:
+      case RoutineCategory.spiritual:
         return AppLocalizations.get('spiritual', _languageCode);
-      case MotivationCategory.education:
+      case RoutineCategory.education:
         return AppLocalizations.get('education', _languageCode);
-      case MotivationCategory.health:
+      case RoutineCategory.health:
         return AppLocalizations.get('health', _languageCode);
-      case MotivationCategory.household:
+      case RoutineCategory.household:
         return AppLocalizations.get('household', _languageCode);
-      case MotivationCategory.selfCare:
+      case RoutineCategory.selfCare:
         return AppLocalizations.get('self_care', _languageCode);
-      case MotivationCategory.social:
+      case RoutineCategory.social:
         return AppLocalizations.get('social', _languageCode);
-      case MotivationCategory.hobby:
+      case RoutineCategory.hobby:
         return AppLocalizations.get('hobby', _languageCode);
-      case MotivationCategory.career:
+      case RoutineCategory.career:
         return AppLocalizations.get('career', _languageCode);
-      case MotivationCategory.personal:
+      case RoutineCategory.personal:
         return AppLocalizations.get('personal', _languageCode);
     }
   }

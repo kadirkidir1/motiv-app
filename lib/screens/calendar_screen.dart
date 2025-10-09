@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
-import '../models/motivation.dart';
+import '../models/routine.dart';
 import '../models/daily_task.dart';
 import '../models/daily_note.dart';
 import '../services/database_service.dart';
 import '../services/language_service.dart';
 
 class CalendarScreen extends StatefulWidget {
-  final List<Motivation> motivations;
+  final List<Routine> motivations;
   final String languageCode;
 
   const CalendarScreen({
@@ -34,11 +34,26 @@ class _CalendarScreenState extends State<CalendarScreen> {
   Future<void> _loadData() async {
     setState(() => isLoading = true);
     
-    final allNotes = <DailyNote>[];
-    for (final motivation in widget.motivations) {
-      final notes = await DatabaseService.getDailyNotes(motivation.id);
-      allNotes.addAll(notes);
-    }
+    // Tüm notları al (silinmiş motivasyonlar dahil)
+    final db = await DatabaseService.database;
+    final notesResult = await db.query('daily_notes', orderBy: 'date DESC');
+    final allNotes = notesResult.map((map) {
+      final id = map['id']?.toString() ?? '';
+      final routineId = map['routineId']?.toString() ?? '';
+      final dateStr = map['date']?.toString() ?? DateTime.now().toIso8601String();
+      final note = map['note']?.toString() ?? '';
+      final mood = (map['mood'] ?? 3) as int;
+      final tagsStr = map['tags']?.toString() ?? '';
+      
+      return DailyNote(
+        id: id,
+        routineId: routineId,
+        date: DateTime.parse(dateStr),
+        note: note,
+        mood: mood,
+        tags: tagsStr.isNotEmpty ? tagsStr.split(',') : [],
+      );
+    }).toList();
 
     final tasksList = await DatabaseService.getDailyTasks();
 
@@ -94,7 +109,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
             const SizedBox(height: 16),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz']
+              children: (widget.languageCode == 'tr'
+                  ? ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz']
+                  : ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'])
                   .map((day) => SizedBox(
                         width: 40,
                         child: Text(
@@ -195,17 +212,22 @@ class _CalendarScreenState extends State<CalendarScreen> {
                 ),
                 const SizedBox(height: 8),
                 ...notes.map((note) {
-                  final motivation = widget.motivations.firstWhere(
-                    (m) => m.id == note.motivationId,
-                    orElse: () => widget.motivations.first,
+                  final motivation = widget.motivations.cast<Routine?>().firstWhere(
+                    (m) => m?.id == note.routineId,
+                    orElse: () => null,
                   );
+                  
                   return Card(
                     child: ListTile(
                       leading: CircleAvatar(
-                        backgroundColor: _getCategoryColor(motivation.category),
-                        child: Icon(_getCategoryIcon(motivation.category), color: Colors.white, size: 20),
+                        backgroundColor: motivation != null ? _getCategoryColor(motivation.category) : Colors.grey,
+                        child: Icon(
+                          motivation != null ? _getCategoryIcon(motivation.category) : Icons.note,
+                          color: Colors.white,
+                          size: 20,
+                        ),
                       ),
-                      title: Text(motivation.title),
+                      title: Text(motivation?.title ?? (widget.languageCode == 'tr' ? 'Silinmiş Motivasyon' : 'Deleted Routine')),
                       subtitle: Text(note.note),
                       trailing: Text(_getMoodEmoji(note.mood), style: const TextStyle(fontSize: 20)),
                     ),
@@ -255,31 +277,31 @@ class _CalendarScreenState extends State<CalendarScreen> {
     }
   }
 
-  Color _getCategoryColor(MotivationCategory category) {
+  Color _getCategoryColor(RoutineCategory category) {
     switch (category) {
-      case MotivationCategory.spiritual: return Colors.green.shade600;
-      case MotivationCategory.education: return Colors.blue.shade600;
-      case MotivationCategory.health: return Colors.orange.shade600;
-      case MotivationCategory.household: return Colors.brown.shade600;
-      case MotivationCategory.selfCare: return Colors.pink.shade600;
-      case MotivationCategory.social: return Colors.teal.shade600;
-      case MotivationCategory.hobby: return Colors.indigo.shade600;
-      case MotivationCategory.career: return Colors.deepOrange.shade600;
-      case MotivationCategory.personal: return Colors.purple.shade600;
+      case RoutineCategory.spiritual: return Colors.green.shade600;
+      case RoutineCategory.education: return Colors.blue.shade600;
+      case RoutineCategory.health: return Colors.orange.shade600;
+      case RoutineCategory.household: return Colors.brown.shade600;
+      case RoutineCategory.selfCare: return Colors.pink.shade600;
+      case RoutineCategory.social: return Colors.teal.shade600;
+      case RoutineCategory.hobby: return Colors.indigo.shade600;
+      case RoutineCategory.career: return Colors.deepOrange.shade600;
+      case RoutineCategory.personal: return Colors.purple.shade600;
     }
   }
 
-  IconData _getCategoryIcon(MotivationCategory category) {
+  IconData _getCategoryIcon(RoutineCategory category) {
     switch (category) {
-      case MotivationCategory.spiritual: return Icons.mosque;
-      case MotivationCategory.education: return Icons.school;
-      case MotivationCategory.health: return Icons.health_and_safety;
-      case MotivationCategory.household: return Icons.home;
-      case MotivationCategory.selfCare: return Icons.spa;
-      case MotivationCategory.social: return Icons.people;
-      case MotivationCategory.hobby: return Icons.palette;
-      case MotivationCategory.career: return Icons.work;
-      case MotivationCategory.personal: return Icons.person;
+      case RoutineCategory.spiritual: return Icons.mosque;
+      case RoutineCategory.education: return Icons.school;
+      case RoutineCategory.health: return Icons.health_and_safety;
+      case RoutineCategory.household: return Icons.home;
+      case RoutineCategory.selfCare: return Icons.spa;
+      case RoutineCategory.social: return Icons.people;
+      case RoutineCategory.hobby: return Icons.palette;
+      case RoutineCategory.career: return Icons.work;
+      case RoutineCategory.personal: return Icons.person;
     }
   }
 }

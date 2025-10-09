@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import '../models/motivation.dart';
+import '../models/routine.dart';
 
 class ProgressChart extends StatelessWidget {
-  final List<MotivationProgress> progressList;
+  final List<RoutineProgress> progressList;
   final String period;
 
   const ProgressChart({
@@ -90,7 +90,7 @@ class ProgressChart extends StatelessWidget {
     return progressList.take(14).map((progress) {
       return {
         'label': '${progress.date.day}/${progress.date.month}',
-        'value': progress.completed ? progress.minutesSpent.toDouble() : 0.0,
+        'value': progress.completed ? (progress.minutesSpent.toDouble()) : 0.0,
       };
     }).toList();
   }
@@ -110,7 +110,7 @@ class ProgressChart extends StatelessWidget {
       
       final totalMinutes = weekProgress
           .where((p) => p.completed)
-          .fold(0.0, (sum, p) => sum + p.minutesSpent);
+          .fold(0.0, (sum, p) => sum + (p.minutesSpent.toDouble()));
       
       weeklyData.add({
         'label': 'H${4-i}',
@@ -134,7 +134,7 @@ class ProgressChart extends StatelessWidget {
       
       final totalMinutes = monthProgress
           .where((p) => p.completed)
-          .fold(0.0, (sum, p) => sum + p.minutesSpent);
+          .fold(0.0, (sum, p) => sum + (p.minutesSpent.toDouble()));
       
       monthlyData.add({
         'label': '${month.month}/${month.year.toString().substring(2)}',

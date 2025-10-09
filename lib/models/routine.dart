@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-enum MotivationCategory {
+enum RoutineCategory {
   spiritual, // Manevi (Namaz, Kuran)
   education, // Eğitim (İngilizce, Kitap)
   health, // Sağlık (Diş fırçalama, Spor)
@@ -12,25 +12,26 @@ enum MotivationCategory {
   career, // İş/Kariyer
 }
 
-enum MotivationFrequency {
+enum RoutineFrequency {
   daily,
   weekly,
   monthly,
 }
 
-class Motivation {
+class Routine {
   final String id;
   final String title;
   final String description;
-  final MotivationCategory category;
-  final MotivationFrequency frequency;
+  final RoutineCategory category;
+  final RoutineFrequency frequency;
   final bool hasAlarm;
   final TimeOfDay? alarmTime;
   final DateTime createdAt;
   final bool isCompleted;
   final int targetMinutes;
+  final bool isTimeBased;
 
-  Motivation({
+  Routine({
     required this.id,
     required this.title,
     required this.description,
@@ -41,21 +42,23 @@ class Motivation {
     required this.createdAt,
     this.isCompleted = false,
     this.targetMinutes = 0,
+    this.isTimeBased = true,
   });
 
-  Motivation copyWith({
+  Routine copyWith({
     String? id,
     String? title,
     String? description,
-    MotivationCategory? category,
-    MotivationFrequency? frequency,
+    RoutineCategory? category,
+    RoutineFrequency? frequency,
     bool? hasAlarm,
     TimeOfDay? alarmTime,
     DateTime? createdAt,
     bool? isCompleted,
     int? targetMinutes,
+    bool? isTimeBased,
   }) {
-    return Motivation(
+    return Routine(
       id: id ?? this.id,
       title: title ?? this.title,
       description: description ?? this.description,
@@ -66,18 +69,19 @@ class Motivation {
       createdAt: createdAt ?? this.createdAt,
       isCompleted: isCompleted ?? this.isCompleted,
       targetMinutes: targetMinutes ?? this.targetMinutes,
+      isTimeBased: isTimeBased ?? this.isTimeBased,
     );
   }
 }
 
-class MotivationProgress {
-  final String motivationId;
+class RoutineProgress {
+  final String routineId;
   final DateTime date;
   final bool completed;
   final int minutesSpent;
 
-  MotivationProgress({
-    required this.motivationId,
+  RoutineProgress({
+    required this.routineId,
     required this.date,
     required this.completed,
     this.minutesSpent = 0,

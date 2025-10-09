@@ -4,6 +4,12 @@ enum TaskStatus {
   expired,
 }
 
+enum TaskDeadlineType {
+  hours, // Kaç saat içinde
+  specificDateTime, // Belirli tarih ve saat
+  endOfDay, // Gün sonuna kadar
+}
+
 class DailyTask {
   final String id;
   final String title;
@@ -12,6 +18,9 @@ class DailyTask {
   final DateTime expiresAt;
   final TaskStatus status;
   final bool addToCalendar;
+  final bool hasAlarm;
+  final DateTime? alarmTime;
+  final TaskDeadlineType deadlineType;
 
   DailyTask({
     required this.id,
@@ -21,6 +30,9 @@ class DailyTask {
     required this.expiresAt,
     this.status = TaskStatus.pending,
     this.addToCalendar = false,
+    this.hasAlarm = false,
+    this.alarmTime,
+    this.deadlineType = TaskDeadlineType.hours,
   });
 
   DailyTask copyWith({
@@ -31,6 +43,9 @@ class DailyTask {
     DateTime? expiresAt,
     TaskStatus? status,
     bool? addToCalendar,
+    bool? hasAlarm,
+    DateTime? alarmTime,
+    TaskDeadlineType? deadlineType,
   }) {
     return DailyTask(
       id: id ?? this.id,
@@ -40,6 +55,9 @@ class DailyTask {
       expiresAt: expiresAt ?? this.expiresAt,
       status: status ?? this.status,
       addToCalendar: addToCalendar ?? this.addToCalendar,
+      hasAlarm: hasAlarm ?? this.hasAlarm,
+      alarmTime: alarmTime ?? this.alarmTime,
+      deadlineType: deadlineType ?? this.deadlineType,
     );
   }
 

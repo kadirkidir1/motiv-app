@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../services/language_service.dart';
 import '../services/auth_service.dart';
 import '../services/profile_service.dart';
 import '../services/location_service.dart';
 import '../services/notification_service.dart';
 import '../services/subscription_service.dart';
+import '../services/revenue_cat_service.dart';
 import '../models/user_profile.dart';
 import 'login_screen.dart';
 import 'premium_screen.dart';
@@ -116,7 +118,9 @@ class _AccountScreenState extends State<AccountScreen> {
                     child: ElevatedButton.icon(
                       onPressed: _isEditing ? _saveProfile : _toggleEdit,
                       icon: Icon(_isEditing ? Icons.save : Icons.edit),
-                      label: Text(_isEditing ? 'Kaydet' : 'Düzenle'),
+                      label: Text(_isEditing 
+                          ? (_languageCode == 'tr' ? 'Kaydet' : 'Save')
+                          : (_languageCode == 'tr' ? 'Düzenle' : 'Edit')),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: _isEditing ? Colors.green : Colors.blue,
                         foregroundColor: Colors.white,
@@ -289,9 +293,9 @@ class _AccountScreenState extends State<AccountScreen> {
               children: [
                 Icon(Icons.notifications_active, color: Colors.blue.shade600),
                 const SizedBox(width: 8),
-                const Text(
-                  'Bildirim Ayarları',
-                  style: TextStyle(
+                Text(
+                  _languageCode == 'tr' ? 'Bildirim Ayarları' : 'Notification Settings',
+                  style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
                   ),
@@ -305,14 +309,16 @@ class _AccountScreenState extends State<AccountScreen> {
                 color: Colors.blue.shade50,
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: const Row(
+              child: Row(
                 children: [
-                  Icon(Icons.info_outline, color: Colors.blue, size: 20),
-                  SizedBox(width: 8),
+                  const Icon(Icons.info_outline, color: Colors.blue, size: 20),
+                  const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      'Bildirimler uygulama açıldığında otomatik kontrol edilir ve gönderilir.',
-                      style: TextStyle(fontSize: 12),
+                      _languageCode == 'tr'
+                          ? 'Bildirimler uygulama açıldığında otomatik kontrol edilir ve gönderilir.'
+                          : 'Notifications are automatically checked and sent when the app opens.',
+                      style: const TextStyle(fontSize: 12),
                     ),
                   ),
                 ],
@@ -320,8 +326,8 @@ class _AccountScreenState extends State<AccountScreen> {
             ),
             const SizedBox(height: 16),
             SwitchListTile(
-              title: const Text('Bildirimleri Aç'),
-              subtitle: const Text('Tüm bildirimleri etkinleştir/kapat'),
+              title: Text(_languageCode == 'tr' ? 'Bildirimleri Aç' : 'Enable Notifications'),
+              subtitle: Text(_languageCode == 'tr' ? 'Tüm bildirimleri etkinleştir/kapat' : 'Enable/disable all notifications'),
               value: _notificationsEnabled,
               onChanged: (value) async {
                 setState(() {
@@ -339,28 +345,28 @@ class _AccountScreenState extends State<AccountScreen> {
               const Divider(),
               ListTile(
                 leading: const Icon(Icons.wb_sunny),
-                title: const Text('Günlük Özet Saati'),
+                title: Text(_languageCode == 'tr' ? 'Günlük Özet Saati' : 'Daily Summary Time'),
                 subtitle: Text('${_dailySummaryTime.hour.toString().padLeft(2, '0')}:${_dailySummaryTime.minute.toString().padLeft(2, '0')}'),
                 trailing: const Icon(Icons.edit),
                 onTap: () => _selectTime(context, 'daily'),
               ),
               ListTile(
                 leading: const Icon(Icons.nightlight_round),
-                title: const Text('Akşam Özeti'),
+                title: Text(_languageCode == 'tr' ? 'Akşam Özeti' : 'Evening Summary'),
                 subtitle: Text('${_eveningSummaryTime.hour.toString().padLeft(2, '0')}:${_eveningSummaryTime.minute.toString().padLeft(2, '0')}'),
                 trailing: const Icon(Icons.edit),
                 onTap: () => _selectTime(context, 'evening'),
               ),
               ListTile(
                 leading: const Icon(Icons.local_fire_department),
-                title: const Text('Seri Hatırlatıcısı'),
+                title: Text(_languageCode == 'tr' ? 'Seri Hatırlatıcısı' : 'Streak Reminder'),
                 subtitle: Text('${_streakReminderTime.hour.toString().padLeft(2, '0')}:${_streakReminderTime.minute.toString().padLeft(2, '0')}'),
                 trailing: const Icon(Icons.edit),
                 onTap: () => _selectTime(context, 'streak'),
               ),
               ListTile(
                 leading: const Icon(Icons.timer),
-                title: const Text('Süre Uyarısı'),
+                title: Text(_languageCode == 'tr' ? 'Süre Uyarısı' : 'Time Warning'),
                 subtitle: Text('$_reminderMinutes dakika önce'),
                 trailing: DropdownButton<int>(
                   value: _reminderMinutes,
@@ -380,88 +386,7 @@ class _AccountScreenState extends State<AccountScreen> {
                   },
                 ),
               ),
-              const Divider(),
-              const Padding(
-                padding: EdgeInsets.all(8.0),
-                child: Text(
-                  'Test Butonları',
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: ElevatedButton.icon(
-                        onPressed: () async {
-                          try {
-                            await NotificationService.showInstantNotification();
-                            if (mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('Anlık bildirim gönderildi!'),
-                                  backgroundColor: Colors.green,
-                                ),
-                              );
-                            }
-                          } catch (e) {
-                            if (mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text('Hata: $e'),
-                                  backgroundColor: Colors.red,
-                                ),
-                              );
-                            }
-                          }
-                        },
-                        icon: const Icon(Icons.flash_on, size: 16),
-                        label: const Text('Hemen', style: TextStyle(fontSize: 12)),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.red,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 8),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: ElevatedButton.icon(
-                        onPressed: () async {
-                          try {
-                            await NotificationService.scheduleTestNotification();
-                            if (mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('15 saniye sonra bildirim!'),
-                                  backgroundColor: Colors.green,
-                                ),
-                              );
-                            }
-                          } catch (e) {
-                            if (mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text('Hata: $e'),
-                                  backgroundColor: Colors.red,
-                                ),
-                              );
-                            }
-                          }
-                        },
-                        icon: const Icon(Icons.timer, size: 16),
-                        label: const Text('15 sn', style: TextStyle(fontSize: 12)),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.purple,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 8),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+
             ],
           ],
         ),
@@ -563,8 +488,7 @@ class _AccountScreenState extends State<AccountScreen> {
             const SizedBox(height: 16),
             Divider(color: Colors.grey.shade300),
             const SizedBox(height: 12),
-            _buildAboutItem(Icons.email, AppLocalizations.get('email', _languageCode), 'destek@motivapp.com'),
-            _buildAboutItem(Icons.web, AppLocalizations.get('website', _languageCode), 'www.motivapp.com'),
+            _buildAboutItem(Icons.email, AppLocalizations.get('email', _languageCode), 'motivapp2025@gmail.com'),
           ],
         ),
       ),
@@ -689,27 +613,71 @@ class _AccountScreenState extends State<AccountScreen> {
   }
 
   Widget _buildSignOutButton() {
-    return SizedBox(
-      width: double.infinity,
-      height: 50,
-      child: OutlinedButton.icon(
-        onPressed: _signOut,
-        icon: const Icon(Icons.logout, color: Colors.red),
-        label: Text(
-          AppLocalizations.get('sign_out', _languageCode),
+    return Column(
+      children: [
+        // Aboneliği Yönet
+        SizedBox(
+          width: double.infinity,
+          height: 50,
+          child: OutlinedButton.icon(
+            onPressed: _manageSubscription,
+            icon: const Icon(Icons.card_membership, color: Colors.blue),
+            label: Text(
+              _languageCode == 'tr' ? 'Aboneliği Yönet' : 'Manage Subscription',
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: Colors.blue,
+              ),
+            ),
+            style: OutlinedButton.styleFrom(
+              side: const BorderSide(color: Colors.blue),
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+        // Hesabı Sil
+        SizedBox(
+          width: double.infinity,
+          height: 50,
+          child: OutlinedButton.icon(
+            onPressed: _deleteAccount,
+            icon: const Icon(Icons.delete_forever, color: Colors.orange),
+            label: Text(
+              _languageCode == 'tr' ? 'Hesabı Sil' : 'Delete Account',
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: Colors.orange,
+              ),
+            ),
+            style: OutlinedButton.styleFrom(
+              side: const BorderSide(color: Colors.orange),
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+        // Çıkış Yap
+        SizedBox(
+          width: double.infinity,
+          height: 50,
+          child: OutlinedButton.icon(
+            onPressed: _signOut,
+            icon: const Icon(Icons.logout, color: Colors.red),
+            label: Text(
+              AppLocalizations.get('sign_out', _languageCode),
           style: const TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.w600,
             color: Colors.red,
           ),
         ),
-        style: OutlinedButton.styleFrom(
-          side: const BorderSide(color: Colors.red),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+            style: OutlinedButton.styleFrom(
+              side: const BorderSide(color: Colors.red),
+            ),
           ),
         ),
-      ),
+      ],
     );
   }
 
@@ -764,6 +732,89 @@ class _AccountScreenState extends State<AccountScreen> {
       setState(() {
         _isLoading = false;
       });
+    }
+  }
+
+  Future<void> _manageSubscription() async {
+    try {
+      await RevenueCatService.showManagementScreen();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(_languageCode == 'tr' ? 'Abonelik yönetimi açılamadı' : 'Could not open subscription management'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _deleteAccount() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(_languageCode == 'tr' ? 'Hesabı Sil' : 'Delete Account'),
+        content: Text(
+          _languageCode == 'tr'
+              ? 'Hesabınızı silmek istediğinizden emin misiniz? Bu işlem geri alınamaz ve tüm verileriniz silinecektir.'
+              : 'Are you sure you want to delete your account? This action cannot be undone and all your data will be deleted.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text(AppLocalizations.get('cancel', _languageCode)),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: Text(
+              _languageCode == 'tr' ? 'Sil' : 'Delete',
+              style: const TextStyle(color: Colors.white),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      try {
+        final user = AuthService.getCurrentUser();
+        if (user != null) {
+          // Supabase'de hesabı deaktif et (silme yerine)
+          await Supabase.instance.client
+              .from('user_profiles')
+              .update({'is_active': false, 'deleted_at': DateTime.now().toIso8601String()})
+              .eq('user_id', user.id);
+          
+          // Çıkış yap
+          await AuthService.signOut();
+          
+          if (mounted) {
+            Navigator.pushAndRemoveUntil(
+              context,
+              MaterialPageRoute(builder: (context) => const LoginScreen()),
+              (route) => false,
+            );
+            
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(_languageCode == 'tr' ? 'Hesabınız silindi' : 'Your account has been deleted'),
+                backgroundColor: Colors.green,
+              ),
+            );
+          }
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(AppLocalizations.get('error_occurred', _languageCode)),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
     }
   }
 

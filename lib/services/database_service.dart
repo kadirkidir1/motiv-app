@@ -3,9 +3,10 @@ import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'dart:developer' as developer;
-import '../models/motivation.dart';
+import '../models/routine.dart';
 import '../models/daily_task.dart';
 import '../models/daily_note.dart';
+import 'notification_service.dart';
 
 class DatabaseService {
   static Database? _database;
@@ -21,7 +22,7 @@ class DatabaseService {
     String path = join(await getDatabasesPath(), 'motiv_app.db');
     return await openDatabase(
       path,
-      version: 2,
+      version: 4,
       onCreate: _createTables,
       onUpgrade: _onUpgrade,
     );
@@ -29,11 +30,10 @@ class DatabaseService {
 
   static Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
     if (oldVersion < 2) {
-      // Add daily_notes table if it doesn't exist
       await db.execute('''
         CREATE TABLE IF NOT EXISTS daily_notes(
           id TEXT PRIMARY KEY,
-          motivationId TEXT NOT NULL,
+          routineId TEXT NOT NULL,
           date TEXT NOT NULL,
           note TEXT NOT NULL,
           mood INTEGER NOT NULL,
@@ -44,11 +44,22 @@ class DatabaseService {
         )
       ''');
     }
+    if (oldVersion < 3) {
+      await db.execute('ALTER TABLE motivations ADD COLUMN isTimeBased INTEGER DEFAULT 1');
+    }
+    if (oldVersion < 4) {
+      // Rename motivations to routines
+      await db.execute('ALTER TABLE motivations RENAME TO routines');
+      // Add new columns to daily_tasks
+      await db.execute('ALTER TABLE daily_tasks ADD COLUMN hasAlarm INTEGER DEFAULT 0');
+      await db.execute('ALTER TABLE daily_tasks ADD COLUMN alarmTime TEXT');
+      await db.execute('ALTER TABLE daily_tasks ADD COLUMN deadlineType TEXT DEFAULT "TaskDeadlineType.hours"');
+    }
   }
 
   static Future<void> _createTables(Database db, int version) async {
     await db.execute('''
-      CREATE TABLE motivations(
+      CREATE TABLE routines(
         id TEXT PRIMARY KEY,
         title TEXT NOT NULL,
         description TEXT,
@@ -59,6 +70,7 @@ class DatabaseService {
         createdAt TEXT NOT NULL,
         isCompleted INTEGER NOT NULL,
         targetMinutes INTEGER NOT NULL,
+        isTimeBased INTEGER DEFAULT 1,
         syncedToCloud INTEGER DEFAULT 0
       )
     ''');
@@ -72,6 +84,9 @@ class DatabaseService {
         expiresAt TEXT NOT NULL,
         status TEXT NOT NULL,
         addToCalendar INTEGER NOT NULL,
+        hasAlarm INTEGER DEFAULT 0,
+        alarmTime TEXT,
+        deadlineType TEXT DEFAULT 'TaskDeadlineType.hours',
         syncedToCloud INTEGER DEFAULT 0
       )
     ''');
@@ -79,7 +94,7 @@ class DatabaseService {
     await db.execute('''
       CREATE TABLE daily_notes(
         id TEXT PRIMARY KEY,
-        motivationId TEXT NOT NULL,
+        routineId TEXT NOT NULL,
         date TEXT NOT NULL,
         note TEXT NOT NULL,
         mood INTEGER NOT NULL,
@@ -92,49 +107,77 @@ class DatabaseService {
   }
 
   // Motivations CRUD
-  static Future<void> insertMotivation(Motivation motivation) async {
+  static Future<void> insertRoutine(Routine routine) async {
     final db = await database;
-    await db.insert('motivations', _motivationToMap(motivation));
-    _syncMotivationToCloud(motivation);
+    await db.insert('routines', _routineToMap(routine));
+    _syncRoutineToCloud(routine);
   }
 
-  static Future<List<Motivation>> getMotivations() async {
+  static Future<List<Routine>> getRoutines() async {
     final db = await database;
-    final List<Map<String, dynamic>> maps = await db.query('motivations');
-    return List.generate(maps.length, (i) => _motivationFromMap(maps[i]));
+    final List<Map<String, dynamic>> maps = await db.query('routines');
+    return List.generate(maps.length, (i) => _routineFromMap(maps[i]));
   }
 
-  static Future<void> updateMotivation(Motivation motivation) async {
+  static Future<void> updateRoutine(Routine routine) async {
     final db = await database;
     await db.update(
-      'motivations',
-      _motivationToMap(motivation),
+      'routines',
+      _routineToMap(routine),
       where: 'id = ?',
-      whereArgs: [motivation.id],
+      whereArgs: [routine.id],
     );
-    _syncMotivationToCloud(motivation);
+    _syncRoutineToCloud(routine);
+    
+    // Önce eski bildirimi iptal et
+    try {
+      await NotificationService.cancelMotivationNotification(routine.id);
+    } catch (e) {
+      developer.log('Notification cancel error: $e', name: 'DatabaseService');
+    }
+    
+    // Bildirim varsa yeniden zamanla
+    if (routine.hasAlarm && routine.alarmTime != null) {
+      try {
+        await NotificationService.scheduleMotivationReminder(
+          routine.id,
+          routine.title,
+          routine.alarmTime!,
+          routine.isTimeBased,
+        );
+      } catch (e) {
+        developer.log('Notification scheduling error: $e', name: 'DatabaseService');
+      }
+    }
   }
 
-  static Future<void> deleteMotivation(String id) async {
+  static Future<void> deleteRoutine(String id) async {
     final db = await database;
     // Önce motivasyona ait notları sil
-    await db.delete('daily_notes', where: 'motivationId = ?', whereArgs: [id]);
+    await db.delete('daily_notes', where: 'routineId = ?', whereArgs: [id]);
     // Sonra motivasyonu sil
-    await db.delete('motivations', where: 'id = ?', whereArgs: [id]);
-    _deleteMotivationFromCloud(id);
+    await db.delete('routines', where: 'id = ?', whereArgs: [id]);
+    _deleteRoutineFromCloud(id);
     // Cloud'dan notları da sil
-    _deleteMotivationNotesFromCloud(id);
+    _deleteRoutineNotesFromCloud(id);
   }
 
-  static Future<void> clearAllMotivations() async {
+  static Future<void> deleteRoutineOnly(String id) async {
     final db = await database;
-    await db.delete('motivations');
+    // Sadece motivasyonu sil, notları koru
+    await db.delete('routines', where: 'id = ?', whereArgs: [id]);
+    _deleteRoutineFromCloud(id);
+  }
+
+  static Future<void> clearAllRoutines() async {
+    final db = await database;
+    await db.delete('routines');
     
     final user = _supabase.auth.currentUser;
     if (user != null) {
       try {
         await _supabase
-            .from('motivations')
+            .from('routines')
             .delete()
             .eq('user_id', user.id);
       } catch (e) {
@@ -143,26 +186,26 @@ class DatabaseService {
     }
   }
 
-  static Future<void> translateExistingMotivations(String languageCode) async {
-    final motivations = await getMotivations();
+  static Future<void> translateExistingRoutines(String languageCode) async {
+    final motivations = await getRoutines();
     
-    for (final motivation in motivations) {
-      String translatedTitle = motivation.title;
-      String translatedDescription = motivation.description;
+    for (final routine in motivations) {
+      String translatedTitle = routine.title;
+      String translatedDescription = routine.description;
       
-      // Check if this is a predefined motivation that needs translation
-      if (_isPredefinedMotivation(motivation.title)) {
-        final translations = _getPredefinedTranslations(motivation.title, languageCode);
+      // Check if this is a predefined routine that needs translation
+      if (_isPredefinedMotivation(routine.title)) {
+        final translations = _getPredefinedTranslations(routine.title, languageCode);
         if (translations != null) {
-          translatedTitle = translations['title'] ?? motivation.title;
-          translatedDescription = translations['description'] ?? motivation.description;
+          translatedTitle = translations['title'] ?? routine.title;
+          translatedDescription = translations['description'] ?? routine.description;
           
-          final updatedMotivation = motivation.copyWith(
+          final updatedMotivation = routine.copyWith(
             title: translatedTitle,
             description: translatedDescription,
           );
           
-          await updateMotivation(updatedMotivation);
+          await updateRoutine(updatedMotivation);
         }
       }
     }
@@ -250,12 +293,12 @@ class DatabaseService {
     _syncNoteToCloud(note, completed, minutesSpent);
   }
 
-  static Future<List<DailyNote>> getDailyNotes(String motivationId) async {
+  static Future<List<DailyNote>> getDailyNotes(String routineId) async {
     final db = await database;
     final List<Map<String, dynamic>> maps = await db.query(
       'daily_notes',
-      where: 'motivationId = ?',
-      whereArgs: [motivationId],
+      where: 'routineId = ?',
+      whereArgs: [routineId],
       orderBy: 'date DESC',
     );
     return List.generate(maps.length, (i) => _noteFromMap(maps[i]));
@@ -279,7 +322,7 @@ class DatabaseService {
   }
 
   // Supabase Sync Methods
-  static Future<void> _syncMotivationToCloud(Motivation motivation) async {
+  static Future<void> _syncRoutineToCloud(Routine routine) async {
     final user = _supabase.auth.currentUser;
     if (user == null) {
       developer.log('❌ No user logged in, skipping cloud sync', name: 'DatabaseService');
@@ -287,21 +330,21 @@ class DatabaseService {
     }
 
     try {
-      final motivationData = _motivationToMap(motivation, forCloud: true);
+      final motivationData = _routineToMap(routine, forCloud: true);
       motivationData['user_id'] = user.id;
       motivationData.remove('syncedToCloud');
       
-      developer.log('📤 Syncing motivation: ${motivation.title} (ID: ${motivation.id})', name: 'DatabaseService');
+      developer.log('📤 Syncing routine: ${routine.title} (ID: ${routine.id})', name: 'DatabaseService');
       developer.log('📦 Data: $motivationData', name: 'DatabaseService');
       
       final response = await _supabase
-          .from('motivations')
+          .from('routines')
           .upsert(motivationData)
           .select();
       
-      developer.log('✅ Motivation synced successfully: $response', name: 'DatabaseService');
+      developer.log('✅ Routine synced successfully: $response', name: 'DatabaseService');
     } catch (e, stackTrace) {
-      developer.log('❌ Motivation cloud sync error: $e', name: 'DatabaseService');
+      developer.log('❌ Routine cloud sync error: $e', name: 'DatabaseService');
       developer.log('Stack trace: $stackTrace', name: 'DatabaseService');
     }
   }
@@ -332,13 +375,13 @@ class DatabaseService {
     }
   }
 
-  static Future<void> _deleteMotivationFromCloud(String id) async {
+  static Future<void> _deleteRoutineFromCloud(String id) async {
     final user = _supabase.auth.currentUser;
     if (user == null) return;
 
     try {
       await _supabase
-          .from('motivations')
+          .from('routines')
           .delete()
           .eq('id', id)
           .eq('user_id', user.id);
@@ -374,7 +417,7 @@ class DatabaseService {
       noteData['user_id'] = user.id;
       noteData.remove('syncedToCloud');
       
-      developer.log('📤 Syncing note: ${note.id} for motivation: ${note.motivationId}', name: 'DatabaseService');
+      developer.log('📤 Syncing note: ${note.id} for routine: ${note.routineId}', name: 'DatabaseService');
       developer.log('📦 Data: $noteData', name: 'DatabaseService');
       
       final response = await _supabase
@@ -404,7 +447,7 @@ class DatabaseService {
     }
   }
 
-  static Future<void> _deleteMotivationNotesFromCloud(String motivationId) async {
+  static Future<void> _deleteRoutineNotesFromCloud(String routineId) async {
     final user = _supabase.auth.currentUser;
     if (user == null) return;
 
@@ -412,7 +455,7 @@ class DatabaseService {
       await _supabase
           .from('daily_notes')
           .delete()
-          .eq('motivation_id', motivationId)
+          .eq('routine_id', routineId)
           .eq('user_id', user.id);
     } catch (e) {
       developer.log('Cloud delete notes error: $e', name: 'DatabaseService');
@@ -433,28 +476,28 @@ class DatabaseService {
       final db = await database;
       
       // Local verileri temizle (sadece cloud'dan gelecek)
-      await db.delete('motivations');
+      await db.delete('routines');
       await db.delete('daily_tasks');
       await db.delete('daily_notes');
       
       // Sync motivations
       developer.log('📥 Fetching motivations from cloud...', name: 'DatabaseService');
       final motivationsResponse = await _supabase
-          .from('motivations')
+          .from('routines')
           .select()
           .eq('user_id', user.id);
 
       developer.log('📊 Found ${motivationsResponse.length} motivations in cloud', name: 'DatabaseService');
       
       for (var data in motivationsResponse) {
-          developer.log('📦 Motivation data from cloud: $data', name: 'DatabaseService');
-          final motivation = _motivationFromMap(data);
+          developer.log('📦 Routine data from cloud: $data', name: 'DatabaseService');
+          final routine = _routineFromMap(data);
           await db.insert(
-            'motivations',
-            _motivationToMap(motivation),
+            'routines',
+            _routineToMap(routine),
             conflictAlgorithm: ConflictAlgorithm.replace,
           );
-          developer.log('✅ Synced motivation: ${motivation.title}', name: 'DatabaseService');
+          developer.log('✅ Synced routine: ${routine.title}', name: 'DatabaseService');
         }
 
       // Sync tasks
@@ -508,67 +551,74 @@ class DatabaseService {
   }
 
   // Helper methods
-  static Map<String, dynamic> _motivationToMap(Motivation motivation, {bool forCloud = false}) {
+  static Map<String, dynamic> _routineToMap(Routine routine, {bool forCloud = false}) {
     if (forCloud) {
-      // Supabase için snake_case
       return {
-        'id': motivation.id,
-        'title': motivation.title,
-        'description': motivation.description,
-        'category': motivation.category.toString(),
-        'frequency': motivation.frequency.toString(),
-        'has_alarm': motivation.hasAlarm ? 1 : 0,
-        'created_at': motivation.createdAt.toIso8601String(),
-        'is_completed': motivation.isCompleted ? 1 : 0,
-        'target_minutes': motivation.targetMinutes,
+        'id': routine.id,
+        'title': routine.title,
+        'description': routine.description,
+        'category': routine.category.toString(),
+        'frequency': routine.frequency.toString(),
+        'has_alarm': routine.hasAlarm ? 1 : 0,
+        'alarm_time': routine.alarmTime != null ? '${routine.alarmTime!.hour}:${routine.alarmTime!.minute.toString().padLeft(2, '0')}' : null,
+        'created_at': routine.createdAt.toIso8601String(),
+        'is_completed': routine.isCompleted ? 1 : 0,
+        'target_minutes': routine.targetMinutes,
+        'is_time_based': routine.isTimeBased ? 1 : 0,
       };
     }
     
-    // Local database için camelCase
     return {
-      'id': motivation.id,
-      'title': motivation.title,
-      'description': motivation.description,
-      'category': motivation.category.toString(),
-      'frequency': motivation.frequency.toString(),
-      'hasAlarm': motivation.hasAlarm ? 1 : 0,
-      'alarmTime': motivation.alarmTime?.toString(),
-      'createdAt': motivation.createdAt.toIso8601String(),
-      'isCompleted': motivation.isCompleted ? 1 : 0,
-      'targetMinutes': motivation.targetMinutes,
+      'id': routine.id,
+      'title': routine.title,
+      'description': routine.description,
+      'category': routine.category.toString(),
+      'frequency': routine.frequency.toString(),
+      'hasAlarm': routine.hasAlarm ? 1 : 0,
+      'alarmTime': routine.alarmTime != null ? '${routine.alarmTime!.hour}:${routine.alarmTime!.minute.toString().padLeft(2, '0')}' : null,
+      'createdAt': routine.createdAt.toIso8601String(),
+      'isCompleted': routine.isCompleted ? 1 : 0,
+      'targetMinutes': routine.targetMinutes,
+      'isTimeBased': routine.isTimeBased ? 1 : 0,
     };
   }
 
-  static Motivation _motivationFromMap(Map<String, dynamic> map) {
-    // Supabase'den gelen data snake_case olabilir
+  static Routine _routineFromMap(Map<String, dynamic> map) {
     final id = map['id']?.toString() ?? '';
     final title = map['title']?.toString() ?? '';
     final description = map['description']?.toString() ?? '';
-    final categoryStr = map['category']?.toString() ?? 'MotivationCategory.personal';
-    final frequencyStr = map['frequency']?.toString() ?? 'MotivationFrequency.daily';
+    final categoryStr = map['category']?.toString() ?? 'RoutineCategory.personal';
+    final frequencyStr = map['frequency']?.toString() ?? 'RoutineFrequency.daily';
     final hasAlarm = map['hasAlarm'] == 1 || map['has_alarm'] == true || map['has_alarm'] == 1;
     final alarmTimeStr = map['alarmTime'] ?? map['alarm_time'];
+    
+    // Debug log
+    if (alarmTimeStr != null) {
+      developer.log('Parsing alarm_time: $alarmTimeStr for routine: $title', name: 'DatabaseService');
+    }
     final createdAtStr = map['createdAt'] ?? map['created_at'];
     final isCompleted = map['isCompleted'] == 1 || map['is_completed'] == true || map['is_completed'] == 1;
     final targetMinutes = (map['targetMinutes'] ?? map['target_minutes'] ?? 0) as int;
+    final isTimeBased = map['isTimeBased'] == 1 || map['is_time_based'] == true || map['is_time_based'] == 1 || map['isTimeBased'] == null;
     
-    return Motivation(
+    return Routine(
       id: id,
       title: title,
       description: description,
-      category: MotivationCategory.values.firstWhere(
+      category: RoutineCategory.values.firstWhere(
         (e) => e.toString() == categoryStr,
-        orElse: () => MotivationCategory.personal,
+        orElse: () => RoutineCategory.personal,
       ),
-      frequency: MotivationFrequency.values.firstWhere(
+      frequency: RoutineFrequency.values.firstWhere(
         (e) => e.toString() == frequencyStr,
-        orElse: () => MotivationFrequency.daily,
+        orElse: () => RoutineFrequency.daily,
       ),
       hasAlarm: hasAlarm,
       alarmTime: alarmTimeStr != null ? _parseTimeOfDay(alarmTimeStr.toString()) : null,
       createdAt: DateTime.parse(createdAtStr.toString()),
       isCompleted: isCompleted,
       targetMinutes: targetMinutes,
+      isTimeBased: isTimeBased,
     );
   }
 
@@ -582,6 +632,10 @@ class DatabaseService {
         'created_at': task.createdAt.toIso8601String(),
         'expires_at': task.expiresAt.toIso8601String(),
         'status': task.status.toString(),
+        'add_to_calendar': task.addToCalendar,
+        'has_alarm': task.hasAlarm ? 1 : 0,
+        'alarm_time': task.alarmTime?.toIso8601String(),
+        'deadline_type': task.deadlineType.toString(),
       };
     }
     
@@ -606,6 +660,9 @@ class DatabaseService {
     final expiresAtStr = map['expiresAt'] ?? map['expires_at'];
     final statusStr = map['status']?.toString() ?? 'TaskStatus.pending';
     final addToCalendar = map['addToCalendar'] == 1 || map['add_to_calendar'] == true || map['add_to_calendar'] == 1;
+    final hasAlarm = map['hasAlarm'] == 1 || map['has_alarm'] == true || map['has_alarm'] == 1;
+    final alarmTimeStr = map['alarmTime'] ?? map['alarm_time'];
+    final deadlineTypeStr = map['deadlineType'] ?? map['deadline_type'] ?? 'TaskDeadlineType.hours';
     
     return DailyTask(
       id: id,
@@ -618,13 +675,24 @@ class DatabaseService {
         orElse: () => TaskStatus.pending,
       ),
       addToCalendar: addToCalendar,
+      hasAlarm: hasAlarm,
+      alarmTime: alarmTimeStr != null ? DateTime.tryParse(alarmTimeStr.toString()) : null,
+      deadlineType: TaskDeadlineType.values.firstWhere(
+        (e) => e.toString() == deadlineTypeStr,
+        orElse: () => TaskDeadlineType.hours,
+      ),
     );
   }
 
   static TimeOfDay? _parseTimeOfDay(String timeString) {
-    if (timeString.isEmpty) return null;
-    final parts = timeString.split(':');
-    return TimeOfDay(hour: int.parse(parts[0]), minute: int.parse(parts[1]));
+    if (timeString.isEmpty || timeString.contains('Instance of')) return null;
+    try {
+      final parts = timeString.split(':');
+      if (parts.length != 2) return null;
+      return TimeOfDay(hour: int.parse(parts[0]), minute: int.parse(parts[1]));
+    } catch (e) {
+      return null;
+    }
   }
 
   static Map<String, dynamic> _noteToMap(DailyNote note, bool completed, int minutesSpent, {bool forCloud = false}) {
@@ -632,7 +700,7 @@ class DatabaseService {
       // Supabase için snake_case
       return {
         'id': note.id,
-        'motivation_id': note.motivationId,
+        'routine_id': note.routineId,
         'date': note.date.toIso8601String(),
         'note': note.note,
         'mood': note.mood,
@@ -645,7 +713,7 @@ class DatabaseService {
     // Local database için camelCase
     return {
       'id': note.id,
-      'motivationId': note.motivationId,
+      'routineId': note.routineId,
       'date': note.date.toIso8601String(),
       'note': note.note,
       'mood': note.mood,
@@ -658,7 +726,7 @@ class DatabaseService {
   static DailyNote _noteFromMap(Map<String, dynamic> map) {
     // Supabase'den gelen data snake_case olabilir
     final id = map['id']?.toString() ?? '';
-    final motivationId = map['motivationId'] ?? map['motivation_id'] ?? '';
+    final routineId = map['routineId'] ?? map['routine_id'] ?? '';
     final dateStr = map['date']?.toString() ?? DateTime.now().toIso8601String();
     final note = map['note']?.toString() ?? '';
     final mood = (map['mood'] ?? 3) as int;
@@ -666,7 +734,7 @@ class DatabaseService {
     
     return DailyNote(
       id: id,
-      motivationId: motivationId.toString(),
+      routineId: routineId.toString(),
       date: DateTime.parse(dateStr),
       note: note,
       mood: mood,

@@ -5,11 +5,17 @@ import 'package:timezone/data/latest.dart' as tz;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'dart:io';
+import 'dart:async';
+import 'language_service.dart';
 
 class NotificationService {
   static final FlutterLocalNotificationsPlugin _notifications =
       FlutterLocalNotificationsPlugin();
   static bool _initialized = false;
+  
+  // Bildirim aksiyonları için stream
+  static final _notificationActionController = StreamController<String>.broadcast();
+  static Stream<String> get notificationStream => _notificationActionController.stream;
 
   static Future<void> initialize() async {
     if (_initialized) return;
@@ -122,7 +128,13 @@ class NotificationService {
   static void _onDidReceiveLocalNotification(
       int id, String? title, String? body, String? payload) {}
 
-  static void _onDidReceiveNotificationResponse(NotificationResponse response) {}
+  static void _onDidReceiveNotificationResponse(NotificationResponse response) {
+    final payload = response.payload;
+    if (payload != null) {
+      // Payload'ı global bir stream'e gönder
+      _notificationActionController.add(payload);
+    }
+  }
 
   static Future<bool> canScheduleExactAlarms() async {
     final androidPlugin = _notifications.resolvePlatformSpecificImplementation<
@@ -149,13 +161,16 @@ class NotificationService {
       }
 
       final delaySeconds = scheduledDate.difference(now).inSeconds;
+      final lang = await LanguageService.getLanguage();
+      final title = lang == 'tr' ? 'Günaydın! 🌅' : 'Good Morning! 🌅';
+      final body = lang == 'tr' ? 'Bugünkü görevlerin seni bekliyor!' : 'Your tasks are waiting for you today!';
 
       if (Platform.isAndroid) {
         const platform = MethodChannel('com.motivapp.motivapp/alarm');
         await platform.invokeMethod('scheduleAlarm', {
           'delaySeconds': delaySeconds,
-          'title': 'Günaydın! 🌅',
-          'body': 'Bugünkü görevlerin seni bekliyor!',
+          'title': title,
+          'body': body,
         });
       } else {
         await _notifications.cancel(1);
@@ -163,8 +178,8 @@ class NotificationService {
 
         await _notifications.zonedSchedule(
           1,
-          'Günaydın! 🌅',
-          'Bugünkü görevlerin seni bekliyor!',
+          title,
+          body,
           tzScheduledDate,
           const NotificationDetails(
             iOS: DarwinNotificationDetails(
@@ -200,13 +215,16 @@ class NotificationService {
       }
 
       final delaySeconds = scheduledDate.difference(now).inSeconds;
+      final lang = await LanguageService.getLanguage();
+      final title = lang == 'tr' ? 'Gün Sonu Özeti 🌙' : 'End of Day Summary 🌙';
+      final body = lang == 'tr' ? 'Bugün harika işler başardın!' : 'You did great things today!';
 
       if (Platform.isAndroid) {
         const platform = MethodChannel('com.motivapp.motivapp/alarm');
         await platform.invokeMethod('scheduleAlarm', {
           'delaySeconds': delaySeconds,
-          'title': 'Gün Sonu Özeti 🌙',
-          'body': 'Bugün harika işler başardın!',
+          'title': title,
+          'body': body,
         });
       } else {
         await _notifications.cancel(2);
@@ -214,8 +232,8 @@ class NotificationService {
 
         await _notifications.zonedSchedule(
           2,
-          'Gün Sonu Özeti 🌙',
-          'Bugün harika işler başardın!',
+          title,
+          body,
           tzScheduledDate,
           const NotificationDetails(
             iOS: DarwinNotificationDetails(
@@ -251,13 +269,16 @@ class NotificationService {
       }
 
       final delaySeconds = scheduledDate.difference(now).inSeconds;
+      final lang = await LanguageService.getLanguage();
+      final title = lang == 'tr' ? 'Serinizi Koruyun! 🔥' : 'Keep Your Streak! 🔥';
+      final body = lang == 'tr' ? 'Bugün hiç görev tamamlamadınız. Hemen başlayın!' : 'You haven\'t completed any tasks today. Start now!';
 
       if (Platform.isAndroid) {
         const platform = MethodChannel('com.motivapp.motivapp/alarm');
         await platform.invokeMethod('scheduleAlarm', {
           'delaySeconds': delaySeconds,
-          'title': 'Serinizi Koruyun! 🔥',
-          'body': 'Bugün hiç görev tamamlamadınız. Hemen başlayın!',
+          'title': title,
+          'body': body,
         });
       } else {
         await _notifications.cancel(3);
@@ -265,8 +286,8 @@ class NotificationService {
 
         await _notifications.zonedSchedule(
           3,
-          'Serinizi Koruyun! 🔥',
-          'Bugün hiç görev tamamlamadınız. Hemen başlayın!',
+          title,
+          body,
           tzScheduledDate,
           const NotificationDetails(
             iOS: DarwinNotificationDetails(
@@ -363,6 +384,164 @@ class NotificationService {
         payload: 'task_reminder_$taskTitle',
       );
 
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  static Future<void> scheduleTaskReminder(String taskId, String taskTitle, DateTime reminderTime) async {
+    try {
+      await _checkInitialization();
+
+      final now = DateTime.now();
+      if (reminderTime.isBefore(now)) return;
+
+      final delaySeconds = reminderTime.difference(now).inSeconds;
+      final lang = await LanguageService.getLanguage();
+      final title = lang == 'tr' ? 'Görev Hatırlatıcısı ⏰' : 'Task Reminder ⏰';
+      final body = lang == 'tr' ? '$taskTitle - Yakında süresi dolacak!' : '$taskTitle - Time is running out!';
+
+      if (Platform.isAndroid) {
+        const platform = MethodChannel('com.motivapp.motivapp/alarm');
+        await platform.invokeMethod('scheduleAlarm', {
+          'delaySeconds': delaySeconds,
+          'title': title,
+          'body': body,
+        });
+      } else {
+        final tzScheduledDate = tz.TZDateTime.from(reminderTime, tz.local);
+        await _notifications.zonedSchedule(
+          '${taskId}_reminder'.hashCode,
+          title,
+          body,
+          tzScheduledDate,
+          const NotificationDetails(
+            iOS: DarwinNotificationDetails(
+              sound: 'default',
+              presentAlert: true,
+              presentBadge: true,
+              presentSound: true,
+            ),
+          ),
+          uiLocalNotificationDateInterpretation:
+              UILocalNotificationDateInterpretation.absoluteTime,
+          payload: 'task_reminder_$taskId',
+        );
+      }
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  static Future<void> scheduleTaskExpiration(String taskId, String taskTitle, DateTime expiresAt) async {
+    try {
+      await _checkInitialization();
+
+      final now = DateTime.now();
+      if (expiresAt.isBefore(now)) return;
+
+      final delaySeconds = expiresAt.difference(now).inSeconds;
+      final lang = await LanguageService.getLanguage();
+      final title = lang == 'tr' ? 'Görev Süresi Doldu ⏰' : 'Task Time Expired ⏰';
+      final body = lang == 'tr' ? '$taskTitle - Tamamladınız mı?' : '$taskTitle - Did you complete it?';
+
+      if (Platform.isAndroid) {
+        const platform = MethodChannel('com.motivapp.motivapp/alarm');
+        await platform.invokeMethod('scheduleAlarm', {
+          'delaySeconds': delaySeconds,
+          'title': title,
+          'body': body,
+        });
+      } else {
+        final tzScheduledDate = tz.TZDateTime.from(expiresAt, tz.local);
+        await _notifications.zonedSchedule(
+          taskId.hashCode,
+          title,
+          body,
+          tzScheduledDate,
+          const NotificationDetails(
+            iOS: DarwinNotificationDetails(
+              sound: 'default',
+              presentAlert: true,
+              presentBadge: true,
+              presentSound: true,
+            ),
+          ),
+          uiLocalNotificationDateInterpretation:
+              UILocalNotificationDateInterpretation.absoluteTime,
+          payload: 'task_expiration_$taskId',
+        );
+      }
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  static Future<void> cancelTaskNotification(String taskId) async {
+    try {
+      await _checkInitialization();
+      await _notifications.cancel(taskId.hashCode);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  static Future<void> scheduleMotivationReminder(String motivationId, String motivationTitle, TimeOfDay time, bool isTimeBased) async {
+    try {
+      await _checkInitialization();
+
+      final now = DateTime.now();
+      var scheduledDate = DateTime(now.year, now.month, now.day, time.hour, time.minute);
+
+      if (scheduledDate.isBefore(now)) {
+        scheduledDate = scheduledDate.add(const Duration(days: 1));
+      }
+
+      final delaySeconds = scheduledDate.difference(now).inSeconds;
+      final lang = await LanguageService.getLanguage();
+      
+      final title = '$motivationTitle \u23f0';
+      final body = isTimeBased
+          ? (lang == 'tr' ? 'Ka\u00e7 dakika harcad\u0131n\u0131z?' : 'How many minutes did you spend?')
+          : (lang == 'tr' ? 'Tamamlad\u0131n\u0131z m\u0131?' : 'Did you complete it?');
+
+      if (Platform.isAndroid) {
+        const platform = MethodChannel('com.motivapp.motivapp/alarm');
+        await platform.invokeMethod('scheduleAlarm', {
+          'delaySeconds': delaySeconds,
+          'title': title,
+          'body': body,
+        });
+      } else {
+        final tzScheduledDate = tz.TZDateTime.from(scheduledDate, tz.local);
+        await _notifications.zonedSchedule(
+          motivationId.hashCode,
+          title,
+          body,
+          tzScheduledDate,
+          const NotificationDetails(
+            iOS: DarwinNotificationDetails(
+              sound: 'default',
+              presentAlert: true,
+              presentBadge: true,
+              presentSound: true,
+            ),
+          ),
+          uiLocalNotificationDateInterpretation:
+              UILocalNotificationDateInterpretation.absoluteTime,
+          matchDateTimeComponents: DateTimeComponents.time,
+          payload: 'motivation_reminder_$motivationId',
+        );
+      }
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  static Future<void> cancelMotivationNotification(String motivationId) async {
+    try {
+      await _checkInitialization();
+      await _notifications.cancel(motivationId.hashCode);
     } catch (e) {
       rethrow;
     }

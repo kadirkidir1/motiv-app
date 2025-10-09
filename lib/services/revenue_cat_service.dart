@@ -69,6 +69,12 @@ class RevenueCatService {
     }
   }
 
+  static Future<void> showManagementScreen() async {
+    // RevenueCat management URL'ini aç
+    // Not: Bu özellik RevenueCat SDK'da yok, manuel olarak URL açılmalı
+    throw UnimplementedError('Abonelik yönetimi için uygulama mağazasını kullanın');
+  }
+
   static Future<void> _syncPremiumStatus(CustomerInfo customerInfo) async {
     final userId = _supabase.auth.currentUser?.id;
     if (userId == null) return;

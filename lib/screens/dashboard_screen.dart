@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import '../models/motivation.dart';
+import '../models/routine.dart';
 import '../models/daily_task.dart';
-import 'motivation_detail_screen.dart';
+import 'routine_detail_screen.dart';
 import 'daily_record_screen.dart';
 import '../services/language_service.dart';
 import '../services/database_service.dart';
@@ -9,7 +9,7 @@ import '../services/subscription_service.dart';
 import 'premium_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
-  final List<Motivation> motivations;
+  final List<Routine> motivations;
   final String languageCode;
 
   const DashboardScreen({
@@ -97,7 +97,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     });
   }
 
-  Future<double> _calculateMotivationProgress(Motivation motivation) async {
+  Future<double> _calculateMotivationProgress(Routine motivation) async {
     final now = DateTime.now();
     final daysSinceCreation = now.difference(motivation.createdAt).inDays;
     
@@ -108,10 +108,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final notes = await DatabaseService.getDailyNotes(motivation.id);
     final completedDays = notes.length;
 
-    if (motivation.frequency == MotivationFrequency.daily) {
+    if (motivation.frequency == RoutineFrequency.daily) {
       final expectedDays = daysSinceCreation;
       return expectedDays > 0 ? (completedDays / expectedDays) * 100 : 0.0;
-    } else if (motivation.frequency == MotivationFrequency.weekly) {
+    } else if (motivation.frequency == RoutineFrequency.weekly) {
       final expectedWeeks = (daysSinceCreation / 7).ceil();
       if (expectedWeeks == 0) return 0.0;
       return (completedDays / expectedWeeks) * 100;
@@ -615,7 +615,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final todayStart = DateTime(today.year, today.month, today.day);
     final todayEnd = todayStart.add(const Duration(days: 1));
     
-    final List<Motivation> relevantMotivations = [];
+    final List<Routine> relevantMotivations = [];
     
     for (final motivation in widget.motivations) {
       final notes = await DatabaseService.getDailyNotes(motivation.id);
@@ -1152,7 +1152,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Widget _buildMotivationCard(Motivation motivation) {
+  Widget _buildMotivationCard(Routine motivation) {
     final progress = _getMotivationProgress(motivation);
     
     return Card(
@@ -1473,11 +1473,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
         return note.date.isAfter(weekStartDate) && note.date.isBefore(weekEnd);
       }).toList();
 
-      if (motivation.frequency == MotivationFrequency.daily) {
+      if (motivation.frequency == RoutineFrequency.daily) {
         totalExpected += now.weekday;
         totalCompleted += weekNotes.length;
         totalMinutes += (weekNotes.length * motivation.targetMinutes).toDouble();
-      } else if (motivation.frequency == MotivationFrequency.weekly) {
+      } else if (motivation.frequency == RoutineFrequency.weekly) {
         totalExpected += 1;
         if (weekNotes.isNotEmpty) {
           totalCompleted += 1;
@@ -1518,7 +1518,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     };
   }
 
-  double _getMotivationProgress(Motivation motivation) {
+  double _getMotivationProgress(Routine motivation) {
     return (motivationProgress[motivation.id] ?? 0.0).clamp(0.0, 100.0);
   }
 
@@ -1542,48 +1542,48 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return widget.languageCode == 'en' ? monthsEn[month] : monthsTr[month];
   }
 
-  Color _getCategoryColor(MotivationCategory category) {
+  Color _getCategoryColor(RoutineCategory category) {
     switch (category) {
-      case MotivationCategory.spiritual:
+      case RoutineCategory.spiritual:
         return Colors.green.shade600;
-      case MotivationCategory.education:
+      case RoutineCategory.education:
         return Colors.blue.shade600;
-      case MotivationCategory.health:
+      case RoutineCategory.health:
         return Colors.orange.shade600;
-      case MotivationCategory.household:
+      case RoutineCategory.household:
         return Colors.brown.shade600;
-      case MotivationCategory.selfCare:
+      case RoutineCategory.selfCare:
         return Colors.pink.shade600;
-      case MotivationCategory.social:
+      case RoutineCategory.social:
         return Colors.teal.shade600;
-      case MotivationCategory.hobby:
+      case RoutineCategory.hobby:
         return Colors.indigo.shade600;
-      case MotivationCategory.career:
+      case RoutineCategory.career:
         return Colors.deepOrange.shade600;
-      case MotivationCategory.personal:
+      case RoutineCategory.personal:
         return Colors.purple.shade600;
     }
   }
 
-  IconData _getCategoryIcon(MotivationCategory category) {
+  IconData _getCategoryIcon(RoutineCategory category) {
     switch (category) {
-      case MotivationCategory.spiritual:
+      case RoutineCategory.spiritual:
         return Icons.mosque;
-      case MotivationCategory.education:
+      case RoutineCategory.education:
         return Icons.school;
-      case MotivationCategory.health:
+      case RoutineCategory.health:
         return Icons.health_and_safety;
-      case MotivationCategory.household:
+      case RoutineCategory.household:
         return Icons.home;
-      case MotivationCategory.selfCare:
+      case RoutineCategory.selfCare:
         return Icons.spa;
-      case MotivationCategory.social:
+      case RoutineCategory.social:
         return Icons.people;
-      case MotivationCategory.hobby:
+      case RoutineCategory.hobby:
         return Icons.palette;
-      case MotivationCategory.career:
+      case RoutineCategory.career:
         return Icons.work;
-      case MotivationCategory.personal:
+      case RoutineCategory.personal:
         return Icons.person;
     }
   }
@@ -1663,7 +1663,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  void _showMotivationOptions(Motivation motivation) {
+  void _showMotivationOptions(Routine motivation) {
     showModalBottomSheet(
       context: context,
       builder: (context) => Container(

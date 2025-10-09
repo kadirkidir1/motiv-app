@@ -1,31 +1,32 @@
 import 'package:flutter/material.dart';
-import '../models/motivation.dart';
-import 'motivation_detail_setup_screen.dart';
+import '../models/routine.dart';
+import 'routine_detail_setup_screen.dart';
 import '../services/language_service.dart';
-import '../services/predefined_motivations.dart';
+import '../services/predefined_routines.dart';
 import 'celebration_screen.dart';
 
-class AddMotivationScreen extends StatefulWidget {
+class AddRoutineScreen extends StatefulWidget {
   final String languageCode;
   
-  const AddMotivationScreen({super.key, required this.languageCode});
+  const AddRoutineScreen({super.key, required this.languageCode});
 
   @override
-  State<AddMotivationScreen> createState() => _AddMotivationScreenState();
+  State<AddRoutineScreen> createState() => _AddRoutineScreenState();
 }
 
-class _AddMotivationScreenState extends State<AddMotivationScreen> {
+class _AddRoutineScreenState extends State<AddRoutineScreen> {
   final _formKey = GlobalKey<FormState>();
   final _titleController = TextEditingController();
   final _descriptionController = TextEditingController();
   final _targetMinutesController = TextEditingController();
 
-  MotivationCategory _selectedCategory = MotivationCategory.personal;
-  MotivationFrequency _selectedFrequency = MotivationFrequency.daily;
+  RoutineCategory _selectedCategory = RoutineCategory.personal;
+  RoutineFrequency _selectedFrequency = RoutineFrequency.daily;
   bool _hasAlarm = false;
   TimeOfDay? _alarmTime;
+  bool _isTimeBased = true;
 
-  MotivationCategory? _selectedCategoryFilter;
+  RoutineCategory? _selectedCategoryFilter;
 
   @override
   Widget build(BuildContext context) {
@@ -44,14 +45,14 @@ class _AddMotivationScreenState extends State<AddMotivationScreen> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  AppLocalizations.get('predefined_motivations', widget.languageCode),
+                  AppLocalizations.get('predefined_routines', widget.languageCode),
                   style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
                 Text(
-                  '${PredefinedMotivations.getTotalMotivationsCount()} ${PredefinedMotivations.getTotalMotivationsCount() == 1 ? AppLocalizations.get('motivation', widget.languageCode) : AppLocalizations.get('motivations', widget.languageCode)}',
+                  '${PredefinedRoutines.getTotalRoutinesCount()} ${PredefinedRoutines.getTotalRoutinesCount() == 1 ? AppLocalizations.get('motivation', widget.languageCode) : AppLocalizations.get('motivations', widget.languageCode)}',
                   style: TextStyle(
                     fontSize: 14,
                     color: Colors.grey.shade600,
@@ -62,7 +63,7 @@ class _AddMotivationScreenState extends State<AddMotivationScreen> {
             const SizedBox(height: 12),
             _buildCategoryTabs(),
             const SizedBox(height: 16),
-            _buildPredefinedMotivations(),
+            _buildPredefinedRoutines(),
             const SizedBox(height: 24),
             const Divider(),
             const SizedBox(height: 16),
@@ -82,7 +83,7 @@ class _AddMotivationScreenState extends State<AddMotivationScreen> {
   }
 
   Widget _buildCategoryTabs() {
-    const categories = MotivationCategory.values;
+    const categories = RoutineCategory.values;
     return SizedBox(
       height: 40,
       child: ListView.builder(
@@ -110,7 +111,7 @@ class _AddMotivationScreenState extends State<AddMotivationScreen> {
           return Padding(
             padding: const EdgeInsets.only(right: 8),
             child: FilterChip(
-              label: Text(PredefinedMotivations.getCategoryName(category, widget.languageCode)),
+              label: Text(PredefinedRoutines.getCategoryName(category, widget.languageCode)),
               selected: _selectedCategoryFilter == category,
               onSelected: (selected) {
                 setState(() {
@@ -126,8 +127,8 @@ class _AddMotivationScreenState extends State<AddMotivationScreen> {
     );
   }
 
-  Widget _buildPredefinedMotivations() {
-    final allMotivations = PredefinedMotivations.getMotivations(widget.languageCode);
+  Widget _buildPredefinedRoutines() {
+    final allMotivations = PredefinedRoutines.getRoutines(widget.languageCode);
     final filteredMotivations = _selectedCategoryFilter == null
         ? allMotivations
         : allMotivations.where((m) => m['category'] == _selectedCategoryFilter).toList();
@@ -221,16 +222,16 @@ class _AddMotivationScreenState extends State<AddMotivationScreen> {
             maxLines: 3,
           ),
           const SizedBox(height: 16),
-          DropdownButtonFormField<MotivationCategory>(
+          DropdownButtonFormField<RoutineCategory>(
             initialValue: _selectedCategory,
             decoration: InputDecoration(
               labelText: AppLocalizations.get('category', widget.languageCode),
               border: const OutlineInputBorder(),
             ),
-            items: MotivationCategory.values.map((category) {
+            items: RoutineCategory.values.map((category) {
               return DropdownMenuItem(
                 value: category,
-                child: Text(PredefinedMotivations.getCategoryName(category, widget.languageCode)),
+                child: Text(PredefinedRoutines.getCategoryName(category, widget.languageCode)),
               );
             }).toList(),
             onChanged: (value) {
@@ -240,13 +241,13 @@ class _AddMotivationScreenState extends State<AddMotivationScreen> {
             },
           ),
           const SizedBox(height: 16),
-          DropdownButtonFormField<MotivationFrequency>(
+          DropdownButtonFormField<RoutineFrequency>(
             initialValue: _selectedFrequency,
             decoration: InputDecoration(
               labelText: AppLocalizations.get('frequency', widget.languageCode),
               border: const OutlineInputBorder(),
             ),
-            items: MotivationFrequency.values.map((frequency) {
+            items: RoutineFrequency.values.map((frequency) {
               return DropdownMenuItem(
                 value: frequency,
                 child: Text(_getFrequencyName(frequency)),
@@ -259,15 +260,28 @@ class _AddMotivationScreenState extends State<AddMotivationScreen> {
             },
           ),
           const SizedBox(height: 16),
-          TextFormField(
-            controller: _targetMinutesController,
-            decoration: InputDecoration(
-              labelText: AppLocalizations.get('target_time', widget.languageCode),
-              border: const OutlineInputBorder(),
-            ),
-            keyboardType: TextInputType.number,
+          SwitchListTile(
+            title: Text(widget.languageCode == 'tr' ? 'Zamanlı Motivasyon' : 'Time-Based Routine'),
+            subtitle: Text(widget.languageCode == 'tr' ? 'Kapalıysa sadece tamamlandı/tamamlanmadı sorar' : 'If off, only asks completed/not completed'),
+            value: _isTimeBased,
+            onChanged: (value) {
+              setState(() {
+                _isTimeBased = value;
+                if (!value) _targetMinutesController.text = '0';
+              });
+            },
           ),
           const SizedBox(height: 16),
+          if (_isTimeBased)
+            TextFormField(
+              controller: _targetMinutesController,
+              decoration: InputDecoration(
+                labelText: AppLocalizations.get('target_time', widget.languageCode),
+                border: const OutlineInputBorder(),
+              ),
+              keyboardType: TextInputType.number,
+            ),
+          if (_isTimeBased) const SizedBox(height: 16),
           SwitchListTile(
             title: Text(AppLocalizations.get('set_alarm', widget.languageCode)),
             value: _hasAlarm,
@@ -317,20 +331,20 @@ class _AddMotivationScreenState extends State<AddMotivationScreen> {
     final result = await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => MotivationDetailSetupScreen(
+        builder: (context) => RoutineDetailSetupScreen(
           baseMotivation: motivationData,
           languageCode: widget.languageCode,
         ),
       ),
     );
-    if (result != null && result is Motivation && mounted) {
+    if (result != null && result is Routine && mounted) {
       _showCelebration(result);
     }
   }
 
   void _saveCustomMotivation() {
     if (_formKey.currentState!.validate()) {
-      final motivation = Motivation(
+      final motivation = Routine(
         id: DateTime.now().millisecondsSinceEpoch.toString(),
         title: _titleController.text,
         description: _descriptionController.text,
@@ -339,13 +353,14 @@ class _AddMotivationScreenState extends State<AddMotivationScreen> {
         hasAlarm: _hasAlarm,
         alarmTime: _alarmTime,
         createdAt: DateTime.now(),
-        targetMinutes: int.tryParse(_targetMinutesController.text) ?? 0,
+        targetMinutes: _isTimeBased ? (int.tryParse(_targetMinutesController.text) ?? 0) : 0,
+        isTimeBased: _isTimeBased,
       );
       _showCelebration(motivation);
     }
   }
 
-  void _showCelebration(Motivation motivation) {
+  void _showCelebration(Routine motivation) {
     Navigator.push(
       context,
       PageRouteBuilder(
@@ -376,38 +391,38 @@ class _AddMotivationScreenState extends State<AddMotivationScreen> {
     }
   }
 
-  Color _getCategoryColor(MotivationCategory category) {
+  Color _getCategoryColor(RoutineCategory category) {
     switch (category) {
-      case MotivationCategory.spiritual:
+      case RoutineCategory.spiritual:
         return Colors.green.shade600;
-      case MotivationCategory.education:
+      case RoutineCategory.education:
         return Colors.blue.shade600;
-      case MotivationCategory.health:
+      case RoutineCategory.health:
         return Colors.orange.shade600;
-      case MotivationCategory.household:
+      case RoutineCategory.household:
         return Colors.brown.shade600;
-      case MotivationCategory.selfCare:
+      case RoutineCategory.selfCare:
         return Colors.pink.shade600;
-      case MotivationCategory.social:
+      case RoutineCategory.social:
         return Colors.teal.shade600;
-      case MotivationCategory.hobby:
+      case RoutineCategory.hobby:
         return Colors.indigo.shade600;
-      case MotivationCategory.career:
+      case RoutineCategory.career:
         return Colors.deepOrange.shade600;
-      case MotivationCategory.personal:
+      case RoutineCategory.personal:
         return Colors.purple.shade600;
     }
   }
 
 
 
-  String _getFrequencyName(MotivationFrequency frequency) {
+  String _getFrequencyName(RoutineFrequency frequency) {
     switch (frequency) {
-      case MotivationFrequency.daily:
+      case RoutineFrequency.daily:
         return AppLocalizations.get('daily', widget.languageCode);
-      case MotivationFrequency.weekly:
+      case RoutineFrequency.weekly:
         return AppLocalizations.get('weekly', widget.languageCode);
-      case MotivationFrequency.monthly:
+      case RoutineFrequency.monthly:
         return AppLocalizations.get('monthly', widget.languageCode);
     }
   }

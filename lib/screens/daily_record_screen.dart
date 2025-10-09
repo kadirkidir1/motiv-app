@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
-import '../models/motivation.dart';
+import '../models/routine.dart';
 import '../models/daily_note.dart';
 import '../services/database_service.dart';
 import '../services/language_service.dart';
 
 class DailyRecordScreen extends StatefulWidget {
-  final Motivation motivation;
+  final Routine motivation;
   final String? languageCode;
 
   const DailyRecordScreen({
@@ -384,7 +384,7 @@ class _DailyRecordScreenState extends State<DailyRecordScreen> {
     
     final dailyNote = DailyNote(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
-      motivationId: widget.motivation.id,
+      routineId: widget.motivation.id,
       date: DateTime.now(),
       note: _noteController.text.trim(),
       mood: selectedMood,
@@ -419,48 +419,48 @@ class _DailyRecordScreenState extends State<DailyRecordScreen> {
     }
   }
 
-  Color _getCategoryColor(MotivationCategory category) {
+  Color _getCategoryColor(RoutineCategory category) {
     switch (category) {
-      case MotivationCategory.spiritual:
+      case RoutineCategory.spiritual:
         return Colors.green.shade600;
-      case MotivationCategory.education:
+      case RoutineCategory.education:
         return Colors.blue.shade600;
-      case MotivationCategory.health:
+      case RoutineCategory.health:
         return Colors.orange.shade600;
-      case MotivationCategory.household:
+      case RoutineCategory.household:
         return Colors.brown.shade600;
-      case MotivationCategory.selfCare:
+      case RoutineCategory.selfCare:
         return Colors.pink.shade600;
-      case MotivationCategory.social:
+      case RoutineCategory.social:
         return Colors.teal.shade600;
-      case MotivationCategory.hobby:
+      case RoutineCategory.hobby:
         return Colors.indigo.shade600;
-      case MotivationCategory.career:
+      case RoutineCategory.career:
         return Colors.deepOrange.shade600;
-      case MotivationCategory.personal:
+      case RoutineCategory.personal:
         return Colors.purple.shade600;
     }
   }
 
-  IconData _getCategoryIcon(MotivationCategory category) {
+  IconData _getCategoryIcon(RoutineCategory category) {
     switch (category) {
-      case MotivationCategory.spiritual:
+      case RoutineCategory.spiritual:
         return Icons.mosque;
-      case MotivationCategory.education:
+      case RoutineCategory.education:
         return Icons.school;
-      case MotivationCategory.health:
+      case RoutineCategory.health:
         return Icons.health_and_safety;
-      case MotivationCategory.household:
+      case RoutineCategory.household:
         return Icons.home;
-      case MotivationCategory.selfCare:
+      case RoutineCategory.selfCare:
         return Icons.spa;
-      case MotivationCategory.social:
+      case RoutineCategory.social:
         return Icons.people;
-      case MotivationCategory.hobby:
+      case RoutineCategory.hobby:
         return Icons.palette;
-      case MotivationCategory.career:
+      case RoutineCategory.career:
         return Icons.work;
-      case MotivationCategory.personal:
+      case RoutineCategory.personal:
         return Icons.person;
     }
   }

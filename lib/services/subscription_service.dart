@@ -1,11 +1,20 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'database_service.dart';
+import 'revenue_cat_service.dart';
 
 class SubscriptionService {
   static final _supabase = Supabase.instance.client;
 
   static Future<bool> isPremium() async {
     try {
+      // 1. Önce RevenueCat'e sor (source of truth)
+      final customerInfo = await RevenueCatService.getCustomerInfo();
+      if (customerInfo != null) {
+        final isPremiumFromRC = customerInfo.entitlements.active.containsKey('premium');
+        if (isPremiumFromRC) return true;
+      }
+      
+      // 2. RevenueCat yoksa/hata verirse, Supabase'den oku (fallback/cache)
       final userId = _supabase.auth.currentUser?.id;
       if (userId == null) return false;
 
@@ -31,6 +40,16 @@ class SubscriptionService {
 
   static Future<DateTime?> getPremiumExpiryDate() async {
     try {
+      // 1. Önce RevenueCat'ten al
+      final customerInfo = await RevenueCatService.getCustomerInfo();
+      if (customerInfo != null) {
+        final expiryDateStr = customerInfo.entitlements.active['premium']?.expirationDate;
+        if (expiryDateStr != null) {
+          return DateTime.parse(expiryDateStr);
+        }
+      }
+      
+      // 2. Fallback: Supabase'den oku
       final userId = _supabase.auth.currentUser?.id;
       if (userId == null) return null;
 

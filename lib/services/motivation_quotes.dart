@@ -44,9 +44,9 @@ class MotivationQuotes {
       author: "Rumi",
     ),
     MotivationQuote(
-      quoteTr: "Sabır, bütün kapıların anahtarıdır. Acı verir ama meyvesi en tatlısıdır. Sabretmek, zaferden daha büyük bir erdemdir.",
-      quoteEn: "Patience is the key to all doors. It hurts but its fruit is the sweetest. Being patient is a greater virtue than victory.",
-      author: "Ali ibn Abi Talib",
+      quoteTr: "Yarınlar yorgun ve bezgin kimselere değil, rahatını terk edebilen gayretli insanlara aittir.",
+      quoteEn: "Tomorrow belongs not to the tired and weary, but to those who can leave their comfort and strive diligently.",
+      author: "M. T. Cicero",
     ),
     MotivationQuote(
       quoteTr: "Büyük işler, büyük planlarla değil, küçük adımlarla başarılır. Her büyük yolculuk tek bir adımla başlar.",

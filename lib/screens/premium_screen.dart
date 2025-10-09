@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:purchases_flutter/purchases_flutter.dart';
 import '../services/revenue_cat_service.dart';
 
 class PremiumScreen extends StatelessWidget {
