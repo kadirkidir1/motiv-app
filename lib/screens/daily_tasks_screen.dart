@@ -108,26 +108,97 @@ class _DailyTasksScreenState extends State<DailyTasksScreen> {
   }
 
   Widget _buildTasksList(List<DailyTask> activeTasks, List<DailyTask> expiredTasks, List<DailyTask> completedTasks) {
+    final allTasks = [...activeTasks, ...expiredTasks, ...completedTasks];
+    final grouped = _groupTasksByTime(allTasks);
+    
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (activeTasks.isNotEmpty) ...[
-            _buildSectionHeader(AppLocalizations.get('active_tasks', widget.languageCode), Colors.green),
-            ...activeTasks.map((task) => _buildTaskCard(task)),
-            const SizedBox(height: 16),
-          ],
-          if (expiredTasks.isNotEmpty) ...[
-            _buildSectionHeader(AppLocalizations.get('expired_tasks', widget.languageCode), Colors.red),
-            ...expiredTasks.map((task) => _buildTaskCard(task)),
-            const SizedBox(height: 16),
-          ],
-          if (completedTasks.isNotEmpty) ...[
-            _buildSectionHeader(AppLocalizations.get('completed_tasks', widget.languageCode), Colors.blue),
-            ...completedTasks.map((task) => _buildTaskCard(task)),
-          ],
+          if (grouped['today']!.isNotEmpty)
+            _buildExpandableSection(
+              widget.languageCode == 'tr' ? 'Bugünün Görevleri' : 'Today\'s Tasks',
+              grouped['today']!,
+              Colors.blue,
+              true,
+            ),
+          if (grouped['week']!.isNotEmpty)
+            _buildExpandableSection(
+              widget.languageCode == 'tr' ? 'Bu Hafta' : 'This Week',
+              grouped['week']!,
+              Colors.orange,
+              false,
+            ),
+          if (grouped['month']!.isNotEmpty)
+            _buildExpandableSection(
+              widget.languageCode == 'tr' ? 'Bu Ay' : 'This Month',
+              grouped['month']!,
+              Colors.purple,
+              false,
+            ),
+          if (grouped['year']!.isNotEmpty)
+            _buildExpandableSection(
+              widget.languageCode == 'tr' ? 'Son 1 Yıl' : 'Last Year',
+              grouped['year']!,
+              Colors.grey,
+              false,
+            ),
         ],
+      ),
+    );
+  }
+
+  Map<String, List<DailyTask>> _groupTasksByTime(List<DailyTask> tasks) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final weekStart = today.subtract(Duration(days: today.weekday - 1));
+    final monthStart = DateTime(now.year, now.month, 1);
+    final yearStart = DateTime(now.year, 1, 1);
+
+    final Map<String, List<DailyTask>> grouped = {
+      'today': [],
+      'week': [],
+      'month': [],
+      'year': [],
+    };
+
+    for (final task in tasks) {
+      final taskDate = DateTime(task.createdAt.year, task.createdAt.month, task.createdAt.day);
+      
+      if (taskDate.isAtSameMomentAs(today)) {
+        grouped['today']!.add(task);
+      } else if (taskDate.isAfter(weekStart) && taskDate.isBefore(today)) {
+        grouped['week']!.add(task);
+      } else if (taskDate.isAfter(monthStart) && taskDate.isBefore(weekStart)) {
+        grouped['month']!.add(task);
+      } else if (taskDate.isAfter(yearStart)) {
+        grouped['year']!.add(task);
+      }
+    }
+
+    return grouped;
+  }
+
+  Widget _buildExpandableSection(String title, List<DailyTask> tasks, Color color, bool initiallyExpanded) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      child: ExpansionTile(
+        initiallyExpanded: initiallyExpanded,
+        leading: CircleAvatar(
+          backgroundColor: color,
+          child: Text(
+            '${tasks.length}',
+            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          ),
+        ),
+        title: Text(
+          title,
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            color: color,
+          ),
+        ),
+        children: tasks.map((task) => _buildTaskCard(task)).toList(),
       ),
     );
   }
@@ -199,10 +270,10 @@ class _DailyTasksScreenState extends State<DailyTasksScreen> {
             if (task.description != null) Text(task.description!),
             const SizedBox(height: 4),
             Text(
-              '${AppLocalizations.get('expires', widget.languageCode)}: ${_formatDateTime(task.expiresAt)}',
+              _getTimeRemainingText(task),
               style: TextStyle(
                 fontSize: 12,
-                color: Colors.grey.shade600,
+                color: _isExpired(task) ? Colors.red.shade600 : Colors.grey.shade600,
               ),
             ),
           ],
@@ -404,6 +475,20 @@ class _DailyTasksScreenState extends State<DailyTasksScreen> {
     } else {
       return AppLocalizations.get('expired', widget.languageCode);
     }
+  }
+
+  bool _isExpired(DailyTask task) {
+    return task.expiresAt.isBefore(DateTime.now());
+  }
+
+  String _getTimeRemainingText(DailyTask task) {
+    if (_isExpired(task)) {
+      return widget.languageCode == 'tr' ? 'Süresi bitti' : 'Expired';
+    }
+    final timeLeft = _formatDateTime(task.expiresAt);
+    return widget.languageCode == 'tr' 
+        ? 'Sürenin bitmesine $timeLeft kaldı'
+        : '$timeLeft remaining';
   }
 }
 

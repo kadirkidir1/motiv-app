@@ -42,14 +42,23 @@ class _LoginScreenState extends State<LoginScreen> {
     });
   }
 
+  void _changeLanguage(String languageCode) async {
+    await LanguageService.setLanguage(languageCode);
+    setState(() {
+      _languageCode = languageCode;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.grey.shade50,
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24.0),
-          child: Column(
+        child: Stack(
+          children: [
+            SingleChildScrollView(
+              padding: const EdgeInsets.all(24.0),
+              child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               SizedBox(height: MediaQuery.of(context).size.height * 0.1),
@@ -87,6 +96,49 @@ class _LoginScreenState extends State<LoginScreen> {
               _buildGoogleSignIn(),
             ],
           ),
+        ),
+            Positioned(
+              top: 16,
+              right: 16,
+              child: GestureDetector(
+                onTap: () {
+                  final newLanguage = _languageCode == 'tr' ? 'en' : 'tr';
+                  _changeLanguage(newLanguage);
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(20),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.1),
+                        blurRadius: 4,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        _languageCode == 'tr' ? '🇹🇷' : '🇺🇸',
+                        style: const TextStyle(fontSize: 16),
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        _languageCode.toUpperCase(),
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -296,7 +348,23 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
             ),
           ),
-          const SizedBox(height: 16),
+          if (!_isSignUp) ...[
+            const SizedBox(height: 8),
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton(
+                onPressed: _showForgotPasswordDialog,
+                child: Text(
+                  _languageCode == 'tr' ? 'Şifremi Unuttum' : 'Forgot Password',
+                  style: TextStyle(
+                    color: Colors.blue.shade600,
+                    fontSize: 14,
+                  ),
+                ),
+              ),
+            ),
+          ],
+          const SizedBox(height: 8),
           TextButton(
             onPressed: () {
               setState(() {
@@ -356,6 +424,128 @@ class _LoginScreenState extends State<LoginScreen> {
           ),
         ),
       ],
+    );
+  }
+
+  void _showForgotPasswordDialog() {
+    final emailController = TextEditingController();
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(_languageCode == 'tr' ? 'Şifremi Unuttum' : 'Forgot Password'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              _languageCode == 'tr'
+                  ? 'E-posta adresinizi girin, şifre sıfırlama bağlantısı gönderelim.'
+                  : 'Enter your email address and we\'ll send you a password reset link.',
+            ),
+            const SizedBox(height: 16),
+            TextFormField(
+              controller: emailController,
+              decoration: InputDecoration(
+                labelText: _languageCode == 'tr' ? 'E-posta' : 'Email',
+                border: const OutlineInputBorder(),
+                prefixIcon: const Icon(Icons.email),
+              ),
+              keyboardType: TextInputType.emailAddress,
+              validator: (value) {
+                if (value == null || value.trim().isEmpty) {
+                  return _languageCode == 'tr' ? 'E-posta gerekli' : 'Email required';
+                }
+                if (!value.contains('@') || !value.contains('.')) {
+                  return _languageCode == 'tr' ? 'Geçerli bir e-posta girin' : 'Enter a valid email';
+                }
+                return null;
+              },
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(_languageCode == 'tr' ? 'İptal' : 'Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final email = emailController.text.trim();
+              
+              // Email validation
+              if (email.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(_languageCode == 'tr' ? 'E-posta gerekli' : 'Email required'),
+                    backgroundColor: Colors.orange,
+                  ),
+                );
+                return;
+              }
+              
+              if (!email.contains('@') || !email.contains('.')) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(_languageCode == 'tr' ? 'Geçerli bir e-posta adresi girin' : 'Enter a valid email address'),
+                    backgroundColor: Colors.orange,
+                  ),
+                );
+                return;
+              }
+              
+              final scaffoldMessenger = ScaffoldMessenger.of(context);
+              Navigator.pop(context);
+              
+              try {
+                await AuthService.resetPassword(email);
+                if (mounted) {
+                  scaffoldMessenger.showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        _languageCode == 'tr'
+                            ? 'Şifre sıfırlama bağlantısı e-posta adresinize gönderildi.'
+                            : 'Password reset link sent to your email.',
+                      ),
+                      backgroundColor: Colors.green,
+                    ),
+                  );
+                }
+              } catch (e) {
+                String errorMessage;
+                final error = e.toString().toLowerCase();
+                
+                if (error.contains('rate limit') || error.contains('429')) {
+                  errorMessage = _languageCode == 'tr'
+                      ? 'Çok fazla deneme yaptınız. Lütfen birkaç dakika bekleyin.'
+                      : 'Too many attempts. Please wait a few minutes.';
+                } else if (error.contains('invalid') || error.contains('format')) {
+                  errorMessage = _languageCode == 'tr'
+                      ? 'Geçersiz e-posta adresi'
+                      : 'Invalid email address';
+                } else if (error.contains('not found')) {
+                  errorMessage = _languageCode == 'tr'
+                      ? 'Bu e-posta adresi kayıtlı değil'
+                      : 'Email not found';
+                } else {
+                  errorMessage = _languageCode == 'tr'
+                      ? 'Bir hata oluştu. Lütfen tekrar deneyin.'
+                      : 'An error occurred. Please try again.';
+                }
+                
+                if (mounted) {
+                  scaffoldMessenger.showSnackBar(
+                    SnackBar(
+                      content: Text(errorMessage),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
+              }
+            },
+            child: Text(_languageCode == 'tr' ? 'Gönder' : 'Send'),
+          ),
+        ],
+      ),
     );
   }
 

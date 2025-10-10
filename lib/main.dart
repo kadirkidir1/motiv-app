@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'screens/splash_screen.dart';
+import 'screens/reset_password_screen.dart';
 import 'services/notification_service.dart';
 import 'services/deep_link_service.dart';
 import 'services/revenue_cat_service.dart';
@@ -20,7 +21,6 @@ void main() async {
   await NotificationService.initialize();
   await NotificationService.rescheduleAllNotifications();
   await RevenueCatService.initialize();
-  await DeepLinkService.initialize();
 
   runApp(const MotivApp());
 }
@@ -39,6 +39,7 @@ class _MotivAppState extends State<MotivApp> {
   void initState() {
     super.initState();
     _listenToNotifications();
+    DeepLinkService.initialize(navigatorKey: navigatorKey);
   }
 
   void _listenToNotifications() {
@@ -64,6 +65,9 @@ class _MotivAppState extends State<MotivApp> {
         useMaterial3: true,
       ),
       home: const SplashScreen(),
+      routes: {
+        '/reset-password': (context) => const ResetPasswordScreen(),
+      },
       debugShowCheckedModeBanner: false,
     );
   }

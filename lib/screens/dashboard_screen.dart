@@ -106,7 +106,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
 
     final notes = await DatabaseService.getDailyNotes(motivation.id);
-    final completedDays = notes.length;
+    // Sadece not girilmiş günleri say (boş not olmamalı)
+    final completedDays = notes.where((note) => note.note.trim().isNotEmpty).length;
 
     if (motivation.frequency == RoutineFrequency.daily) {
       final expectedDays = daysSinceCreation;
@@ -1248,7 +1249,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
             const SizedBox(height: 12),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz']
+              children: (widget.languageCode == 'tr' 
+                  ? ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz']
+                  : ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'])
                   .map((day) => SizedBox(
                         width: 40,
                         child: Text(

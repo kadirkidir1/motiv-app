@@ -23,13 +23,16 @@ class AuthService {
         }
         
         // Yeni kullanıcıya 1 ay ücretsiz premium ver
-        final premiumUntil = DateTime.now().add(const Duration(days: 30));
-        await _supabase.from('user_profiles').upsert({
-          'user_id': response.user!.id,
-          'email': email,
-          'subscription_type': 'premium',
-          'premium_until': premiumUntil.toIso8601String(),
-        });
+        try {
+          final premiumUntil = DateTime.now().add(const Duration(days: 30));
+          await _supabase.from('user_profiles').insert({
+            'user_id': response.user!.id,
+            'subscription_type': 'premium',
+            'premium_until': premiumUntil.toIso8601String(),
+          });
+        } catch (e) {
+          // Profil oluşturma hatası, devam et
+        }
         
         return;
       } else {
@@ -118,21 +121,24 @@ class AuthService {
       
       // Yeni kullanıcı kontrolü - eğer profil yoksa 1 ay premium ver
       if (response.user != null) {
-        final profile = await _supabase
-            .from('user_profiles')
-            .select()
-            .eq('user_id', response.user!.id)
-            .maybeSingle();
-        
-        if (profile == null) {
-          // Yeni kullanıcı, 1 ay ücretsiz premium ver
-          final premiumUntil = DateTime.now().add(const Duration(days: 30));
-          await _supabase.from('user_profiles').insert({
-            'user_id': response.user!.id,
-            'email': response.user!.email,
-            'subscription_type': 'premium',
-            'premium_until': premiumUntil.toIso8601String(),
-          });
+        try {
+          final profile = await _supabase
+              .from('user_profiles')
+              .select()
+              .eq('user_id', response.user!.id)
+              .maybeSingle();
+          
+          if (profile == null) {
+            // Yeni kullanıcı, 1 ay ücretsiz premium ver
+            final premiumUntil = DateTime.now().add(const Duration(days: 30));
+            await _supabase.from('user_profiles').insert({
+              'user_id': response.user!.id,
+              'subscription_type': 'premium',
+              'premium_until': premiumUntil.toIso8601String(),
+            });
+          }
+        } catch (e) {
+          // Profil oluşturma hatası, devam et (kullanıcı yine de giriş yapabilir)
         }
       }
 

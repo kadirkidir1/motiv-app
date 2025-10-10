@@ -1,7 +1,45 @@
 -- MotivApp Supabase Database Setup
 -- Run this in Supabase SQL Editor
 
--- 1. Create routines table
+-- 1. Create user_profiles table
+CREATE TABLE IF NOT EXISTS public.user_profiles (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL UNIQUE REFERENCES auth.users(id) ON DELETE CASCADE,
+    full_name TEXT,
+    age INTEGER,
+    country TEXT,
+    city TEXT,
+    subscription_type TEXT DEFAULT 'free',
+    premium_until TIMESTAMP WITH TIME ZONE,
+    is_active BOOLEAN DEFAULT true,
+    deleted_at TIMESTAMP WITH TIME ZONE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Enable RLS for user_profiles
+ALTER TABLE public.user_profiles ENABLE ROW LEVEL SECURITY;
+
+-- RLS Policies for user_profiles
+DROP POLICY IF EXISTS "Users can view their own profile" ON public.user_profiles;
+CREATE POLICY "Users can view their own profile"
+    ON public.user_profiles FOR SELECT
+    USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can insert their own profile" ON public.user_profiles;
+CREATE POLICY "Users can insert their own profile"
+    ON public.user_profiles FOR INSERT
+    WITH CHECK (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can update their own profile" ON public.user_profiles;
+CREATE POLICY "Users can update their own profile"
+    ON public.user_profiles FOR UPDATE
+    USING (auth.uid() = user_id);
+
+-- Create index
+CREATE INDEX IF NOT EXISTS idx_user_profiles_user_id ON public.user_profiles(user_id);
+
+-- 2. Create routines table
 CREATE TABLE IF NOT EXISTS public.routines (
     id TEXT PRIMARY KEY,
     user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
