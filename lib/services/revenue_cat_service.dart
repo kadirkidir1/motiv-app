@@ -3,16 +3,16 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 class RevenueCatService {
   static final _supabase = Supabase.instance.client;
-  static const _apiKey = 'YOUR_REVENUECAT_API_KEY'; // RevenueCat dashboard'dan alacağız
+  static const _apiKey = 'goog_VFcTaeVDnKvcmFgmYLCCFcewaGx';
 
   static Future<void> initialize() async {
     if (_apiKey == 'YOUR_REVENUECAT_API_KEY') {
       return; // API key henüz ayarlanmamış, atla
     }
-    
+
     try {
       await Purchases.setLogLevel(LogLevel.debug);
-      
+
       final config = PurchasesConfiguration(_apiKey);
       await Purchases.configure(config);
 
@@ -89,7 +89,8 @@ class RevenueCatService {
     if (userId == null) return;
 
     final isPremium = customerInfo.entitlements.active.containsKey('premium');
-    final expiryDate = customerInfo.entitlements.active['premium']?.expirationDate;
+    final expiryDate =
+        customerInfo.entitlements.active['premium']?.expirationDate;
 
     await _supabase.from('profiles').update({
       'subscription_type': isPremium ? 'premium' : 'free',

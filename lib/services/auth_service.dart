@@ -60,6 +60,18 @@ class AuthService {
       );
 
       if (response.user != null) {
+        // Hesap silinmiş mi kontrol et
+        final profile = await _supabase
+            .from('user_profiles')
+            .select('is_active')
+            .eq('user_id', response.user!.id)
+            .maybeSingle();
+        
+        if (profile != null && profile['is_active'] == false) {
+          await _supabase.auth.signOut();
+          throw Exception('Bu hesap silinmiş. Lütfen yeni bir hesap oluşturun.');
+        }
+        
         // Save remember me preference
         final prefs = await SharedPreferences.getInstance();
         await prefs.setBool(_rememberMeKey, rememberMe);
@@ -136,8 +148,15 @@ class AuthService {
               'subscription_type': 'premium',
               'premium_until': premiumUntil.toIso8601String(),
             });
+          } else if (profile['is_active'] == false) {
+            // Hesap silinmiş
+            await _supabase.auth.signOut();
+            throw Exception('Bu hesap silinmiş. Lütfen yeni bir hesap oluşturun.');
           }
         } catch (e) {
+          if (e.toString().contains('Bu hesap silinmiş')) {
+            rethrow;
+          }
           // Profil oluşturma hatası, devam et (kullanıcı yine de giriş yapabilir)
         }
       }

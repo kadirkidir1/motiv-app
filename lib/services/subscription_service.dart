@@ -84,13 +84,13 @@ class SubscriptionService {
       if (userId == null) {
         // Offline - local database'den say
         final db = await DatabaseService.database;
-        final result = await db.query('motivations');
+        final result = await db.query('routines');
         return result.length;
       }
 
       // Online - Supabase'den say
       final response = await _supabase
-          .from('motivations')
+          .from('routines')
           .select('id')
           .eq('user_id', userId);
 
@@ -98,7 +98,7 @@ class SubscriptionService {
     } catch (e) {
       try {
         final db = await DatabaseService.database;
-        final result = await db.query('motivations');
+        final result = await db.query('routines');
         return result.length;
       } catch (_) {
         return 0;
