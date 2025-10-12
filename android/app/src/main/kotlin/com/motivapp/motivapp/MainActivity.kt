@@ -36,14 +36,25 @@ class MainActivity : FlutterActivity() {
 
     private fun scheduleAlarm(delaySeconds: Int, title: String, body: String) {
         val alarmManager = getSystemService(Context.ALARM_SERVICE) as AlarmManager
+        
+        // Bildirim türüne göre sabit request code kullan
+        val requestCode = when {
+            title.contains("Günaydın") || title.contains("Good Morning") -> 1001
+            title.contains("Gün Sonu") || title.contains("End of Day") -> 1002
+            title.contains("Serinizi") || title.contains("Keep Your Streak") -> 1003
+            title.contains("Görev") || title.contains("Task") -> title.hashCode()
+            else -> title.hashCode()
+        }
+        
         val intent = Intent(this, AlarmReceiver::class.java).apply {
             putExtra("title", title)
             putExtra("body", body)
+            putExtra("requestCode", requestCode)
         }
         
         val pendingIntent = PendingIntent.getBroadcast(
             this,
-            System.currentTimeMillis().toInt(),
+            requestCode,
             intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
@@ -64,6 +75,7 @@ class AlarmReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         val title = intent.getStringExtra("title") ?: "Bildirim"
         val body = intent.getStringExtra("body") ?: "Test"
+        val requestCode = intent.getIntExtra("requestCode", 0)
         
         createNotificationChannel(context)
         
@@ -85,7 +97,7 @@ class AlarmReceiver : BroadcastReceiver() {
             .setContentIntent(pendingIntent)
             .build()
 
-        NotificationManagerCompat.from(context).notify(System.currentTimeMillis().toInt(), notification)
+        NotificationManagerCompat.from(context).notify(requestCode, notification)
     }
     
     private fun createNotificationChannel(context: Context) {

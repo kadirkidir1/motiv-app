@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../models/user_profile.dart';
-import '../services/location_service.dart';
 import '../services/language_service.dart';
 import '../services/profile_service.dart';
 import '../services/auth_service.dart';
@@ -17,12 +16,6 @@ class ProfileSetupScreen extends StatefulWidget {
 }
 
 class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
-  final _formKey = GlobalKey<FormState>();
-  final _nameController = TextEditingController();
-  final _ageController = TextEditingController();
-  
-  String? _selectedCountry;
-  String? _selectedCity;
   String _languageCode = 'tr';
 
   @override
@@ -122,151 +115,38 @@ child: const Text(
             },
           ),
         ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24.0),
-        child: Form(
-          key: _formKey,
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24.0),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
               const Icon(
-                Icons.person_add,
-                size: 80,
-                color: Colors.blue,
+                Icons.check_circle_outline,
+                size: 100,
+                color: Colors.green,
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 30),
               Text(
-                AppLocalizations.get('complete_profile', _languageCode),
+                _languageCode == 'tr' ? 'Hoş Geldiniz!' : 'Welcome!',
                 style: const TextStyle(
-                  fontSize: 24,
+                  fontSize: 28,
                   fontWeight: FontWeight.bold,
                   color: Colors.black87,
                 ),
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 15),
               Text(
-                AppLocalizations.get('profile_subtitle', _languageCode),
+                _languageCode == 'tr' 
+                  ? 'Hesabınız başarıyla oluşturuldu.\nHemen başlayalım!'
+                  : 'Your account has been created successfully.\nLet\'s get started!',
+                textAlign: TextAlign.center,
                 style: const TextStyle(
                   fontSize: 16,
                   color: Colors.grey,
                 ),
               ),
-              const SizedBox(height: 40),
-              
-              // İsim
-              TextFormField(
-                controller: _nameController,
-                decoration: InputDecoration(
-                  labelText: AppLocalizations.get('full_name', _languageCode),
-                  prefixIcon: const Icon(Icons.person),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return AppLocalizations.get('name_required', _languageCode);
-                  }
-                  return null;
-                },
-              ),
-              
-              const SizedBox(height: 20),
-              
-              // Yaş
-              TextFormField(
-                controller: _ageController,
-                decoration: InputDecoration(
-                  labelText: AppLocalizations.get('age', _languageCode),
-                  prefixIcon: const Icon(Icons.cake),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                keyboardType: TextInputType.number,
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return AppLocalizations.get('age_required', _languageCode);
-                  }
-                  final age = int.tryParse(value);
-                  if (age == null || age < 13 || age > 120) {
-                    return AppLocalizations.get('age_invalid', _languageCode);
-                  }
-                  return null;
-                },
-              ),
-              
-              const SizedBox(height: 20),
-              
-              // Ülke
-              DropdownButtonFormField<String>(
-                key: ValueKey(_selectedCountry),
-                initialValue: _selectedCountry,
-                decoration: InputDecoration(
-                  labelText: AppLocalizations.get('country', _languageCode),
-                  prefixIcon: const Icon(Icons.flag),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                items: LocationService.getCountries().map((country) {
-                  return DropdownMenuItem(
-                    value: country,
-                    child: Text(country),
-                  );
-                }).toList(),
-                onChanged: (value) {
-                  setState(() {
-                    _selectedCountry = value;
-                    _selectedCity = null;
-                  });
-                },
-                validator: (value) {
-                  if (value == null) {
-                    return AppLocalizations.get('country_required', _languageCode);
-                  }
-                  return null;
-                },
-              ),
-
-              const SizedBox(height: 20),
-
-              // Şehir
-              DropdownButtonFormField<String>(
-                key: ValueKey('$_selectedCountry-$_selectedCity'),
-                initialValue: _selectedCity,
-                decoration: InputDecoration(
-                  labelText: AppLocalizations.get('city', _languageCode),
-                  prefixIcon: const Icon(Icons.location_city),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                items: _selectedCountry != null
-                    ? LocationService.getCities(_selectedCountry!).map((city) {
-                        return DropdownMenuItem(
-                          value: city,
-                          child: Text(city),
-                        );
-                      }).toList()
-                    : [],
-                onChanged: _selectedCountry != null
-                    ? (value) {
-                        setState(() {
-                          _selectedCity = value;
-                        });
-                      }
-                    : null,
-                validator: (value) {
-                  if (value == null) {
-                    return AppLocalizations.get('city_required', _languageCode);
-                  }
-                  return null;
-                },
-              ),
-              
-              const SizedBox(height: 40),
-              
+              const SizedBox(height: 50),
               SizedBox(
                 width: double.infinity,
                 height: 50,
@@ -279,7 +159,7 @@ child: const Text(
                     ),
                   ),
                   child: Text(
-                    AppLocalizations.get('complete_setup', _languageCode),
+                    _languageCode == 'tr' ? 'Başlayalım' : 'Get Started',
                     style: const TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w600,
@@ -297,50 +177,38 @@ child: const Text(
   }
 
   void _saveProfile() async {
-    if (_formKey.currentState!.validate()) {
-      try {
-        final user = AuthService.getCurrentUser();
-        if (user == null) {
-          throw Exception('Kullanıcı bulunamadı. Lütfen tekrar giriş yapın.');
-        }
+    try {
+      final user = AuthService.getCurrentUser();
+      if (user == null) {
+        throw Exception('Kullanıcı bulunamadı. Lütfen tekrar giriş yapın.');
+      }
 
-        final newProfile = UserProfile(
-          id: user.id,
-          email: widget.email,
-          fullName: _nameController.text.trim(),
-          age: int.parse(_ageController.text),
-          country: _selectedCountry,
-          city: _selectedCity,
-          createdAt: DateTime.now(),
+      final newProfile = UserProfile(
+        id: user.id,
+        email: widget.email,
+        createdAt: DateTime.now(),
+      );
+
+      await ProfileService.updateProfile(newProfile);
+
+      if (mounted) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const HomeScreen()),
         );
-
-        await ProfileService.updateProfile(newProfile);
-
-        // Profili kaydet ve ana ekrana git
-        if (mounted) {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (context) => const HomeScreen()),
-          );
-        }
-      } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Hata: ${e.toString()}'),
-              backgroundColor: Colors.red,
-              duration: const Duration(seconds: 5),
-            ),
-          );
-        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Hata: ${e.toString()}'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 5),
+          ),
+        );
       }
     }
   }
 
-  @override
-  void dispose() {
-    _nameController.dispose();
-    _ageController.dispose();
-    super.dispose();
-  }
+
 }

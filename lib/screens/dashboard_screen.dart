@@ -101,26 +101,41 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final now = DateTime.now();
     final daysSinceCreation = now.difference(motivation.createdAt).inDays;
     
+    print('=== Progress Debug for ${motivation.title} ===');
+    print('Days since creation: $daysSinceCreation');
+    
     if (daysSinceCreation < 1) {
+      print('Less than 1 day, returning 0%');
       return 0.0;
     }
 
     final notes = await DatabaseService.getDailyNotes(motivation.id);
+    print('Total notes: ${notes.length}');
+    
     // Sadece not girilmiş günleri say (boş not olmamalı)
     final completedDays = notes.where((note) => note.note.trim().isNotEmpty).length;
+    print('Completed days (non-empty notes): $completedDays');
 
+    double progress = 0.0;
     if (motivation.frequency == RoutineFrequency.daily) {
       final expectedDays = daysSinceCreation;
-      return expectedDays > 0 ? (completedDays / expectedDays) * 100 : 0.0;
+      progress = expectedDays > 0 ? (completedDays / expectedDays) * 100 : 0.0;
+      print('Daily routine: $completedDays / $expectedDays = $progress%');
     } else if (motivation.frequency == RoutineFrequency.weekly) {
       final expectedWeeks = (daysSinceCreation / 7).ceil();
       if (expectedWeeks == 0) return 0.0;
-      return (completedDays / expectedWeeks) * 100;
+      progress = (completedDays / expectedWeeks) * 100;
+      print('Weekly routine: $completedDays / $expectedWeeks = $progress%');
     } else {
       final expectedMonths = (daysSinceCreation / 30).ceil();
       if (expectedMonths == 0) return 0.0;
-      return (completedDays / expectedMonths) * 100;
+      progress = (completedDays / expectedMonths) * 100;
+      print('Monthly routine: $completedDays / $expectedMonths = $progress%');
     }
+    
+    print('Final progress: $progress%');
+    print('==============================');
+    return progress;
   }
 
   @override

@@ -3,10 +3,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../services/language_service.dart';
 import '../services/auth_service.dart';
 import '../services/profile_service.dart';
-import '../services/location_service.dart';
 import '../services/notification_service.dart';
 import '../services/subscription_service.dart';
-import '../services/revenue_cat_service.dart';
 import '../models/user_profile.dart';
 import 'login_screen.dart';
 import 'premium_screen.dart';
@@ -24,16 +22,9 @@ class AccountScreen extends StatefulWidget {
 }
 
 class _AccountScreenState extends State<AccountScreen> {
-  final _formKey = GlobalKey<FormState>();
-  final _fullNameController = TextEditingController();
-  final _ageController = TextEditingController();
-
   String _languageCode = 'tr';
   bool _isLoading = false;
-  bool _isEditing = false;
   UserProfile? _profile;
-  String? _selectedCountry;
-  String? _selectedCity;
   
   bool _notificationsEnabled = true;
   TimeOfDay _dailySummaryTime = const TimeOfDay(hour: 8, minute: 0);
@@ -75,10 +66,6 @@ class _AccountScreenState extends State<AccountScreen> {
       if (profile != null) {
         setState(() {
           _profile = profile;
-          _fullNameController.text = profile.fullName ?? '';
-          _ageController.text = profile.age?.toString() ?? '';
-          _selectedCountry = profile.country;
-          _selectedCity = profile.city;
         });
       }
     } catch (e) {
@@ -111,24 +98,6 @@ class _AccountScreenState extends State<AccountScreen> {
                   _buildProfileHeader(user),
                   const SizedBox(height: 16),
                   _buildPremiumCard(),
-                  const SizedBox(height: 16),
-                  // Edit/Save butonu
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: ElevatedButton.icon(
-                      onPressed: _isEditing ? _saveProfile : _toggleEdit,
-                      icon: Icon(_isEditing ? Icons.save : Icons.edit),
-                      label: Text(_isEditing 
-                          ? (_languageCode == 'tr' ? 'Kaydet' : 'Save')
-                          : (_languageCode == 'tr' ? 'Düzenle' : 'Edit')),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: _isEditing ? Colors.green : Colors.blue,
-                        foregroundColor: Colors.white,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  _buildProfileForm(),
                   const SizedBox(height: 24),
                   _buildNotificationSettings(),
                   const SizedBox(height: 24),
@@ -158,18 +127,10 @@ class _AccountScreenState extends State<AccountScreen> {
             ),
             const SizedBox(height: 16),
             Text(
-              _profile?.fullName ?? AppLocalizations.get('no_name', _languageCode),
-              style: const TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
               user?.email ?? '',
-              style: TextStyle(
-                fontSize: 16,
-                color: Colors.grey.shade600,
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w500,
               ),
             ),
           ],
@@ -178,109 +139,7 @@ class _AccountScreenState extends State<AccountScreen> {
     );
   }
 
-  Widget _buildProfileForm() {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                AppLocalizations.get('profile_info', _languageCode),
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _fullNameController,
-                decoration: InputDecoration(
-                  labelText: AppLocalizations.get('full_name', _languageCode),
-                  prefixIcon: const Icon(Icons.person),
-                  border: const OutlineInputBorder(),
-                ),
-                enabled: _isEditing,
-                validator: (value) {
-                  if (value == null || value.trim().isEmpty) {
-                    return AppLocalizations.get('name_required', _languageCode);
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _ageController,
-                decoration: InputDecoration(
-                  labelText: AppLocalizations.get('age', _languageCode),
-                  prefixIcon: const Icon(Icons.cake),
-                  border: const OutlineInputBorder(),
-                ),
-                enabled: _isEditing,
-                keyboardType: TextInputType.number,
-                validator: (value) {
-                  if (value != null && value.isNotEmpty) {
-                    final age = int.tryParse(value);
-                    if (age == null || age < 1 || age > 120) {
-                      return AppLocalizations.get('age_invalid', _languageCode);
-                    }
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 16),
-              DropdownButtonFormField<String>(
-                key: ValueKey(_selectedCountry),
-                initialValue: _selectedCountry,
-                decoration: InputDecoration(
-                  labelText: AppLocalizations.get('country', _languageCode),
-                  prefixIcon: const Icon(Icons.public),
-                  border: const OutlineInputBorder(),
-                ),
-                items: LocationService.getCountries().map((country) {
-                  return DropdownMenuItem(
-                    value: country,
-                    child: Text(country),
-                  );
-                }).toList(),
-                onChanged: _isEditing ? (value) {
-                  setState(() {
-                    _selectedCountry = value;
-                    _selectedCity = null;
-                  });
-                } : null,
-              ),
-              const SizedBox(height: 16),
-              DropdownButtonFormField<String>(
-                key: ValueKey('$_selectedCountry-$_selectedCity'),
-                initialValue: _selectedCity,
-                decoration: InputDecoration(
-                  labelText: AppLocalizations.get('city', _languageCode),
-                  prefixIcon: const Icon(Icons.location_city),
-                  border: const OutlineInputBorder(),
-                ),
-                items: _selectedCountry != null
-                    ? LocationService.getCities(_selectedCountry!).map((city) {
-                        return DropdownMenuItem(
-                          value: city,
-                          child: Text(city),
-                        );
-                      }).toList()
-                    : [],
-                onChanged: _isEditing && _selectedCountry != null ? (value) {
-                  setState(() {
-                    _selectedCity = value;
-                  });
-                } : null,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
+
 
   Widget _buildNotificationSettings() {
     return Card(
@@ -681,59 +540,7 @@ class _AccountScreenState extends State<AccountScreen> {
     );
   }
 
-  void _toggleEdit() {
-    setState(() {
-      _isEditing = !_isEditing;
-    });
-  }
 
-  Future<void> _saveProfile() async {
-    if (!_formKey.currentState!.validate()) return;
-
-    setState(() {
-      _isLoading = true;
-    });
-
-    try {
-      final profile = UserProfile(
-        id: AuthService.getCurrentUser()!.id,
-        email: AuthService.getCurrentUser()!.email!,
-        fullName: _fullNameController.text.trim(),
-        age: int.tryParse(_ageController.text),
-        country: _selectedCountry,
-        city: _selectedCity,
-      );
-
-      await ProfileService.updateProfile(profile);
-      
-      setState(() {
-        _profile = profile;
-        _isEditing = false;
-      });
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(AppLocalizations.get('profile_updated', _languageCode)),
-            backgroundColor: Colors.green,
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(AppLocalizations.get('error_occurred', _languageCode)),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    } finally {
-      setState(() {
-        _isLoading = false;
-      });
-    }
-  }
 
   Future<void> _manageSubscription() async {
     final isPremium = await SubscriptionService.isPremium();
