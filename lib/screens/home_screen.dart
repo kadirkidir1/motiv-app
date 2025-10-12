@@ -277,7 +277,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     const SizedBox(height: 4),
                     Row(
                       children: [
-                        if (motivation.targetMinutes > 0) ...[
+                        if (motivation.isTimeBased && motivation.targetMinutes > 0) ...[
                           Icon(
                             Icons.timer,
                             size: 14,

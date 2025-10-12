@@ -5,7 +5,6 @@ import '../services/auth_service.dart';
 import '../services/profile_service.dart';
 import '../services/notification_service.dart';
 import '../services/subscription_service.dart';
-import '../models/user_profile.dart';
 import 'login_screen.dart';
 import 'premium_screen.dart';
 
@@ -24,7 +23,6 @@ class AccountScreen extends StatefulWidget {
 class _AccountScreenState extends State<AccountScreen> {
   String _languageCode = 'tr';
   bool _isLoading = false;
-  UserProfile? _profile;
   
   bool _notificationsEnabled = true;
   TimeOfDay _dailySummaryTime = const TimeOfDay(hour: 8, minute: 0);
@@ -62,12 +60,8 @@ class _AccountScreenState extends State<AccountScreen> {
     });
 
     try {
-      final profile = await ProfileService.getProfile();
-      if (profile != null) {
-        setState(() {
-          _profile = profile;
-        });
-      }
+      await ProfileService.getProfile();
+      // Profile loaded successfully
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -559,6 +553,7 @@ class _AccountScreenState extends State<AccountScreen> {
     }
     
     // Premium ise Google Play'e yönlendir
+    if (!mounted) return;
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -619,18 +614,22 @@ class _AccountScreenState extends State<AccountScreen> {
           await AuthService.signOut();
           
           if (mounted) {
-            Navigator.pushAndRemoveUntil(
-              context,
-              MaterialPageRoute(builder: (context) => const LoginScreen()),
-              (route) => false,
-            );
+            if (mounted) {
+              Navigator.pushAndRemoveUntil(
+                context,
+                MaterialPageRoute(builder: (context) => const LoginScreen()),
+                (route) => false,
+              );
+            }
             
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(_languageCode == 'tr' ? 'Hesabınız silindi' : 'Your account has been deleted'),
-                backgroundColor: Colors.green,
-              ),
-            );
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(_languageCode == 'tr' ? 'Hesabınız silindi' : 'Your account has been deleted'),
+                  backgroundColor: Colors.green,
+                ),
+              );
+            }
           }
         }
       } catch (e) {

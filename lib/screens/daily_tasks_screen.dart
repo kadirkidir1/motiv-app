@@ -32,7 +32,7 @@ class _DailyTasksScreenState extends State<DailyTasksScreen> {
     try {
       final loadedTasks = await DatabaseService.getDailyTasks();
       
-      // Süre kontrolü yap - sadece pending task'lar için
+      // Süre kontrolü yap - sadece pending task'lar için status güncelle
       for (var task in loadedTasks) {
         if (task.status == TaskStatus.pending && task.isExpired) {
           final expiredTask = task.copyWith(status: TaskStatus.expired);
@@ -203,32 +203,7 @@ class _DailyTasksScreenState extends State<DailyTasksScreen> {
     );
   }
 
-  Widget _buildSectionHeader(String title, Color color) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Row(
-        children: [
-          Container(
-            width: 4,
-            height: 20,
-            decoration: BoxDecoration(
-              color: color,
-              borderRadius: BorderRadius.circular(2),
-            ),
-          ),
-          const SizedBox(width: 8),
-          Text(
-            title,
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: color,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+
 
   Widget _buildTaskCard(DailyTask task) {
     Color cardColor;
@@ -278,39 +253,38 @@ class _DailyTasksScreenState extends State<DailyTasksScreen> {
             ),
           ],
         ),
-        trailing: task.status == TaskStatus.pending
-            ? PopupMenuButton(
-                itemBuilder: (context) => [
-                  PopupMenuItem(
-                    value: 'complete',
-                    child: Row(
-                      children: [
-                        const Icon(Icons.check, color: Colors.green),
-                        const SizedBox(width: 8),
-                        Text(AppLocalizations.get('mark_complete', widget.languageCode)),
-                      ],
-                    ),
+        trailing: PopupMenuButton(
+            itemBuilder: (context) => [
+              if (task.status == TaskStatus.pending)
+                PopupMenuItem(
+                  value: 'complete',
+                  child: Row(
+                    children: [
+                      const Icon(Icons.check, color: Colors.green),
+                      const SizedBox(width: 8),
+                      Text(AppLocalizations.get('mark_complete', widget.languageCode)),
+                    ],
                   ),
-                  PopupMenuItem(
-                    value: 'delete',
-                    child: Row(
-                      children: [
-                        const Icon(Icons.delete, color: Colors.red),
-                        const SizedBox(width: 8),
-                        Text(AppLocalizations.get('delete', widget.languageCode)),
-                      ],
-                    ),
-                  ),
-                ],
-                onSelected: (value) {
-                  if (value == 'complete') {
-                    _completeTask(task);
-                  } else if (value == 'delete') {
-                    _deleteTask(task);
-                  }
-                },
-              )
-            : null,
+                ),
+              PopupMenuItem(
+                value: 'delete',
+                child: Row(
+                  children: [
+                    const Icon(Icons.delete, color: Colors.red),
+                    const SizedBox(width: 8),
+                    Text(AppLocalizations.get('delete', widget.languageCode)),
+                  ],
+                ),
+              ),
+            ],
+            onSelected: (value) {
+              if (value == 'complete') {
+                _completeTask(task);
+              } else if (value == 'delete') {
+                _deleteTask(task);
+              }
+            },
+          ),
       ),
     );
   }

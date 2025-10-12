@@ -100,42 +100,38 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Future<double> _calculateMotivationProgress(Routine motivation) async {
     final now = DateTime.now();
     final daysSinceCreation = now.difference(motivation.createdAt).inDays;
+    final effectiveDays = daysSinceCreation < 1 ? 1 : daysSinceCreation;
     
-    print('=== Progress Debug for ${motivation.title} ===');
-    print('Days since creation: $daysSinceCreation');
-    
-    if (daysSinceCreation < 1) {
-      print('Less than 1 day, returning 0%');
-      return 0.0;
-    }
-
     final notes = await DatabaseService.getDailyNotes(motivation.id);
-    print('Total notes: ${notes.length}');
     
-    // Sadece not girilmiş günleri say (boş not olmamalı)
-    final completedDays = notes.where((note) => note.note.trim().isNotEmpty).length;
-    print('Completed days (non-empty notes): $completedDays');
-
-    double progress = 0.0;
-    if (motivation.frequency == RoutineFrequency.daily) {
-      final expectedDays = daysSinceCreation;
-      progress = expectedDays > 0 ? (completedDays / expectedDays) * 100 : 0.0;
-      print('Daily routine: $completedDays / $expectedDays = $progress%');
-    } else if (motivation.frequency == RoutineFrequency.weekly) {
-      final expectedWeeks = (daysSinceCreation / 7).ceil();
-      if (expectedWeeks == 0) return 0.0;
-      progress = (completedDays / expectedWeeks) * 100;
-      print('Weekly routine: $completedDays / $expectedWeeks = $progress%');
+    if (motivation.targetMinutes > 0) {
+      // Time-based: Sadece süreye bak
+      int totalMinutes = 0;
+      for (final note in notes) {
+        final minutes = await _getMinutesForNote(note.id);
+        totalMinutes += minutes;
+      }
+      
+      final expectedMinutes = motivation.targetMinutes * effectiveDays;
+      final progress = expectedMinutes > 0 ? (totalMinutes / expectedMinutes) * 100 : 0.0;
+      return progress.clamp(0.0, 100.0);
     } else {
-      final expectedMonths = (daysSinceCreation / 30).ceil();
-      if (expectedMonths == 0) return 0.0;
-      progress = (completedDays / expectedMonths) * 100;
-      print('Monthly routine: $completedDays / $expectedMonths = $progress%');
+      // Non-time-based: Sadece isCompleted check'ine bak
+      final completedDays = notes.where((note) => note.isCompleted).length;
+      
+      double progress = 0.0;
+      if (motivation.frequency == RoutineFrequency.daily) {
+        progress = (completedDays / effectiveDays) * 100;
+      } else if (motivation.frequency == RoutineFrequency.weekly) {
+        final expectedWeeks = (effectiveDays / 7).ceil().clamp(1, 999);
+        progress = (completedDays / expectedWeeks) * 100;
+      } else {
+        final expectedMonths = (effectiveDays / 30).ceil().clamp(1, 999);
+        progress = (completedDays / expectedMonths) * 100;
+      }
+      
+      return progress;
     }
-    
-    print('Final progress: $progress%');
-    print('==============================');
-    return progress;
   }
 
   @override

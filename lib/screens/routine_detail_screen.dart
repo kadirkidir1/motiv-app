@@ -45,10 +45,24 @@ class _RoutineDetailScreenState extends State<MotivationDetailScreen> {
       // Progress verilerini daily notes'lardan oluştur
       final now = DateTime.now();
       final Map<String, DailyNote> notesByDate = {};
+      final Map<String, int> minutesByDate = {};
       
+      // Database'den minutesSpent değerlerini al
+      final db = await DatabaseService.database;
       for (var note in notes) {
         final dateKey = '${note.date.year}-${note.date.month}-${note.date.day}';
         notesByDate[dateKey] = note;
+        
+        // minutesSpent'i database'den al
+        final result = await db.query(
+          'daily_notes',
+          columns: ['minutesSpent'],
+          where: 'id = ?',
+          whereArgs: [note.id],
+        );
+        if (result.isNotEmpty) {
+          minutesByDate[dateKey] = result.first['minutesSpent'] as int? ?? 0;
+        }
       }
       
       // Son 30 günün progress verilerini oluştur
@@ -57,12 +71,16 @@ class _RoutineDetailScreenState extends State<MotivationDetailScreen> {
         final date = now.subtract(Duration(days: i));
         final dateKey = '${date.year}-${date.month}-${date.day}';
         final note = notesByDate[dateKey];
+        final minutes = minutesByDate[dateKey] ?? 0;
         
-        final minutes = note != null ? await _getMinutesFromNote(note) : 0;
+        final isCompleted = widget.motivation.isTimeBased 
+            ? (note != null && minutes > 0)
+            : (note != null && note.isCompleted);
+        
         newProgressList.add(RoutineProgress(
           routineId: widget.motivation.id,
           date: date,
-          completed: note != null && minutes > 0,
+          completed: isCompleted,
           minutesSpent: minutes,
         ));
       }
@@ -78,21 +96,6 @@ class _RoutineDetailScreenState extends State<MotivationDetailScreen> {
         progressList = _generateEmptyProgress();
       });
     }
-  }
-  
-  Future<int> _getMinutesFromNote(DailyNote note) async {
-    final db = await DatabaseService.database;
-    final result = await db.query(
-      'daily_notes',
-      columns: ['minutesSpent'],
-      where: 'id = ?',
-      whereArgs: [note.id],
-    );
-    
-    if (result.isNotEmpty) {
-      return result.first['minutesSpent'] as int? ?? 0;
-    }
-    return 0;
   }
   
   List<RoutineProgress> _generateEmptyProgress() {
@@ -460,7 +463,9 @@ class _RoutineDetailScreenState extends State<MotivationDetailScreen> {
                   ),
                   subtitle: Text(
                     progress.completed 
-                        ? '${progress.minutesSpent} ${AppLocalizations.get('minutes', _languageCode)}'
+                        ? (widget.motivation.isTimeBased && progress.minutesSpent > 0
+                            ? '${progress.minutesSpent} ${AppLocalizations.get('minutes', _languageCode)}'
+                            : AppLocalizations.get('completed_status', _languageCode))
                         : AppLocalizations.get('not_completed', _languageCode),
                     style: TextStyle(
                       fontSize: 12,
@@ -513,16 +518,18 @@ class _RoutineDetailScreenState extends State<MotivationDetailScreen> {
                   ),
                   maxLines: 3,
                 ),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: minutesController,
-                  decoration: InputDecoration(
-                    labelText: AppLocalizations.get('how_many_minutes', _languageCode),
-                    border: const OutlineInputBorder(),
-                    suffixText: AppLocalizations.get('minutes', _languageCode),
+                if (widget.motivation.isTimeBased && widget.motivation.targetMinutes > 0) ...[
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: minutesController,
+                    decoration: InputDecoration(
+                      labelText: AppLocalizations.get('how_many_minutes', _languageCode),
+                      border: const OutlineInputBorder(),
+                      suffixText: AppLocalizations.get('minutes', _languageCode),
+                    ),
+                    keyboardType: TextInputType.number,
                   ),
-                  keyboardType: TextInputType.number,
-                ),
+                ],
                 const SizedBox(height: 16),
                 Text(AppLocalizations.get('how_do_you_feel', _languageCode)),
                 const SizedBox(height: 8),
@@ -563,7 +570,7 @@ class _RoutineDetailScreenState extends State<MotivationDetailScreen> {
             ElevatedButton(
               onPressed: () async {
                 if (noteController.text.isNotEmpty) {
-                  final minutes = int.tryParse(minutesController.text) ?? 0;
+                  final minutes = widget.motivation.isTimeBased ? (int.tryParse(minutesController.text) ?? 0) : 0;
                   
                   final note = DailyNote(
                     id: DateTime.now().millisecondsSinceEpoch.toString(),
@@ -579,7 +586,9 @@ class _RoutineDetailScreenState extends State<MotivationDetailScreen> {
                   final errorText = AppLocalizations.get('error_occurred', _languageCode);
                   
                   try {
-                    final isCompleted = minutes >= widget.motivation.targetMinutes;
+                    final isCompleted = widget.motivation.isTimeBased 
+                        ? minutes >= widget.motivation.targetMinutes 
+                        : true;
                     await DatabaseService.insertDailyNote(note, isCompleted, minutes);
                     setState(() {
                       dailyNotes.insert(0, note);
@@ -619,15 +628,17 @@ class _RoutineDetailScreenState extends State<MotivationDetailScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(AppLocalizations.get('did_you_complete', _languageCode)),
-            const SizedBox(height: 16),
-            TextField(
-              controller: minutesController,
-              decoration: InputDecoration(
-                labelText: AppLocalizations.get('how_many_minutes', _languageCode),
-                border: const OutlineInputBorder(),
+            if (widget.motivation.isTimeBased && widget.motivation.targetMinutes > 0) ...[
+              const SizedBox(height: 16),
+              TextField(
+                controller: minutesController,
+                decoration: InputDecoration(
+                  labelText: AppLocalizations.get('how_many_minutes', _languageCode),
+                  border: const OutlineInputBorder(),
+                ),
+                keyboardType: TextInputType.number,
               ),
-              keyboardType: TextInputType.number,
-            ),
+            ],
           ],
         ),
         actions: [
@@ -637,7 +648,9 @@ class _RoutineDetailScreenState extends State<MotivationDetailScreen> {
           ),
           ElevatedButton(
             onPressed: () async {
-              final minutes = int.tryParse(minutesController.text) ?? widget.motivation.targetMinutes;
+              final minutes = widget.motivation.isTimeBased 
+                  ? (int.tryParse(minutesController.text) ?? widget.motivation.targetMinutes)
+                  : 0;
               
               final note = DailyNote(
                 id: DateTime.now().millisecondsSinceEpoch.toString(),
@@ -716,7 +729,11 @@ class _RoutineDetailScreenState extends State<MotivationDetailScreen> {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.end,
       children: last7Days.map((progress) {
-        final height = progress.completed ? (progress.minutesSpent / 60 * 80) + 20 : 10.0;
+        final height = progress.completed 
+            ? (widget.motivation.isTimeBased && progress.minutesSpent > 0
+                ? (progress.minutesSpent / 60 * 80) + 20
+                : 60.0)
+            : 10.0;
         
         return Expanded(
           child: Padding(

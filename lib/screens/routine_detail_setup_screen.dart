@@ -26,6 +26,7 @@ class _RoutineDetailSetupScreenState extends State<RoutineDetailSetupScreen> {
   RoutineFrequency selectedFrequency = RoutineFrequency.daily;
   bool hasAlarm = false;
   TimeOfDay? alarmTime;
+  bool _isTimeBased = true;
   String _currentLanguageCode = 'tr';
 
   final Map<String, List<String>> subTypes = {
@@ -256,21 +257,39 @@ class _RoutineDetailSetupScreenState extends State<RoutineDetailSetupScreen> {
           ),
         ),
         const SizedBox(height: 12),
-        TextFormField(
-          controller: _targetMinutesController,
-          decoration: InputDecoration(
-            labelText: AppLocalizations.get('minutes', _currentLanguageCode),
-            border: const OutlineInputBorder(),
-            suffixText: AppLocalizations.get('minutes', _currentLanguageCode),
-          ),
-          keyboardType: TextInputType.number,
-          validator: (value) {
-            if (value == null || value.isEmpty) {
-              return AppLocalizations.get('target_time_minutes', _currentLanguageCode);
-            }
-            return null;
+        SwitchListTile(
+          title: Text(_currentLanguageCode == 'tr' ? 'Zamanlamalı' : 'Time-based'),
+          subtitle: Text(_currentLanguageCode == 'tr' ? 'Süre hedefi belirle' : 'Set time target'),
+          value: _isTimeBased,
+          onChanged: (value) {
+            setState(() {
+              _isTimeBased = value;
+              if (!value) {
+                _targetMinutesController.text = '0';
+              } else if (_targetMinutesController.text == '0') {
+                _targetMinutesController.text = '30';
+              }
+            });
           },
         ),
+        if (_isTimeBased) ...[
+          const SizedBox(height: 12),
+          TextFormField(
+            controller: _targetMinutesController,
+            decoration: InputDecoration(
+              labelText: AppLocalizations.get('minutes', _currentLanguageCode),
+              border: const OutlineInputBorder(),
+              suffixText: AppLocalizations.get('minutes', _currentLanguageCode),
+            ),
+            keyboardType: TextInputType.number,
+            validator: (value) {
+              if (_isTimeBased && (value == null || value.isEmpty)) {
+                return AppLocalizations.get('target_time_minutes', _currentLanguageCode);
+              }
+              return null;
+            },
+          ),
+        ],
       ],
     );
   }
@@ -394,7 +413,8 @@ class _RoutineDetailSetupScreenState extends State<RoutineDetailSetupScreen> {
         hasAlarm: hasAlarm,
         alarmTime: alarmTime,
         createdAt: DateTime.now(),
-        targetMinutes: int.tryParse(_targetMinutesController.text) ?? 30,
+        targetMinutes: _isTimeBased ? (int.tryParse(_targetMinutesController.text) ?? 30) : 0,
+        isTimeBased: _isTimeBased,
       );
 
       Navigator.pop(context, motivation);

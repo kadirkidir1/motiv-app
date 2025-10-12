@@ -245,17 +245,19 @@ class _DailyRecordScreenState extends State<DailyRecordScreen> {
                 fontWeight: FontWeight.bold,
               ),
             ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _minutesController,
-              decoration: InputDecoration(
-                labelText: AppLocalizations.get('minutes', _languageCode),
-                border: const OutlineInputBorder(),
-                suffixText: AppLocalizations.get('minutes', _languageCode),
-                hintText: '${AppLocalizations.get('example', _languageCode)}: ${widget.motivation.targetMinutes}',
+            if (widget.motivation.targetMinutes > 0) ...[
+              const SizedBox(height: 12),
+              TextField(
+                controller: _minutesController,
+                decoration: InputDecoration(
+                  labelText: AppLocalizations.get('minutes', _languageCode),
+                  border: const OutlineInputBorder(),
+                  suffixText: AppLocalizations.get('minutes', _languageCode),
+                  hintText: '${AppLocalizations.get('example', _languageCode)}: ${widget.motivation.targetMinutes}',
+                ),
+                keyboardType: TextInputType.number,
               ),
-              keyboardType: TextInputType.number,
-            ),
+            ],
           ],
         ),
       ),
@@ -388,7 +390,8 @@ class _DailyRecordScreenState extends State<DailyRecordScreen> {
       date: DateTime.now(),
       note: _noteController.text.trim(),
       mood: selectedMood,
-      tags: [], // Empty tags list
+      tags: [],
+      isCompleted: completed,
     );
     
     try {

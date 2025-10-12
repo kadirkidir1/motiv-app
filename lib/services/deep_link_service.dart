@@ -37,8 +37,8 @@ class DeepLinkService {
         // Navigate to reset password screen if it's a password reset
         if (isPasswordReset) {
           await Future.delayed(const Duration(milliseconds: 500));
-          if (_navigatorKey?.currentContext != null) {
-            final context = _navigatorKey!.currentContext!;
+          final context = _navigatorKey?.currentContext;
+          if (context != null && context.mounted) {
             Navigator.pushNamed(context, '/reset-password');
           }
         }

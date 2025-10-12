@@ -7,7 +7,6 @@ import '../services/language_service.dart';
 import '../services/auth_service.dart';
 import '../services/profile_service.dart';
 import '../services/database_service.dart';
-import '../services/database_debug.dart';
 import 'dart:developer' as developer;
 
 class SplashScreen extends StatefulWidget {
@@ -46,9 +45,6 @@ class _SplashScreenState extends State<SplashScreen> {
         if (isSignedIn) {
           // User is signed in and should be remembered
           developer.log('User is signed in, syncing from cloud...', name: 'SplashScreen');
-          
-          // Debug: Check cloud data before sync
-          await DatabaseDebug.runFullCheck();
           
           // Sync data from cloud
           try {

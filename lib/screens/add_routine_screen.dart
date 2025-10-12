@@ -3,6 +3,7 @@ import '../models/routine.dart';
 import 'routine_detail_setup_screen.dart';
 import '../services/language_service.dart';
 import '../services/predefined_routines.dart';
+import '../services/notification_service.dart';
 import 'celebration_screen.dart';
 
 class AddRoutineScreen extends StatefulWidget {
@@ -342,7 +343,7 @@ class _AddRoutineScreenState extends State<AddRoutineScreen> {
     }
   }
 
-  void _saveCustomMotivation() {
+  void _saveCustomMotivation() async {
     if (_formKey.currentState!.validate()) {
       final motivation = Routine(
         id: DateTime.now().millisecondsSinceEpoch.toString(),
@@ -356,6 +357,17 @@ class _AddRoutineScreenState extends State<AddRoutineScreen> {
         targetMinutes: _isTimeBased ? (int.tryParse(_targetMinutesController.text) ?? 0) : 0,
         isTimeBased: _isTimeBased,
       );
+      
+      // Alarm kurulmuşsa bildirim ayarla
+      if (_hasAlarm && _alarmTime != null) {
+        await NotificationService.scheduleMotivationReminder(
+          motivation.id,
+          motivation.title,
+          _alarmTime!,
+          _isTimeBased,
+        );
+      }
+      
       _showCelebration(motivation);
     }
   }

@@ -119,20 +119,21 @@ class SubscriptionService {
       final userId = _supabase.auth.currentUser?.id;
       if (userId == null) {
         final db = await DatabaseService.database;
-        final result = await db.query('daily_tasks');
+        final result = await db.query('daily_tasks', where: 'status = ?', whereArgs: ['pending']);
         return result.length;
       }
 
       final response = await _supabase
           .from('daily_tasks')
           .select('id')
-          .eq('user_id', userId);
+          .eq('user_id', userId)
+          .eq('status', 'pending');
 
       return (response as List).length;
     } catch (e) {
       try {
         final db = await DatabaseService.database;
-        final result = await db.query('daily_tasks');
+        final result = await db.query('daily_tasks', where: 'status = ?', whereArgs: ['pending']);
         return result.length;
       } catch (_) {
         return 0;

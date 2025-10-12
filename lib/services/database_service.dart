@@ -531,15 +531,15 @@ class DatabaseService {
       
       for (var data in notesResponse) {
           developer.log('📦 Note data from cloud: $data', name: 'DatabaseService');
-          final note = _noteFromMap(data);
           final completed = (data['completed'] == 1 || data['completed'] == true);
           final minutesSpent = (data['minutesSpent'] ?? data['minutes_spent'] ?? 0) as int;
+          final note = _noteFromMap(data);
           await db.insert(
             'daily_notes',
             _noteToMap(note, completed, minutesSpent),
             conflictAlgorithm: ConflictAlgorithm.replace,
           );
-          developer.log('✅ Synced note: ${note.id}', name: 'DatabaseService');
+          developer.log('✅ Synced note: ${note.id}, completed=$completed, minutes=$minutesSpent', name: 'DatabaseService');
         }
       
       developer.log('🎉 Sync from cloud completed successfully', name: 'DatabaseService');
@@ -599,7 +599,8 @@ class DatabaseService {
     final createdAtStr = map['createdAt'] ?? map['created_at'];
     final isCompleted = map['isCompleted'] == 1 || map['is_completed'] == true || map['is_completed'] == 1;
     final targetMinutes = (map['targetMinutes'] ?? map['target_minutes'] ?? 0) as int;
-    final isTimeBased = map['isTimeBased'] == 1 || map['is_time_based'] == true || map['is_time_based'] == 1 || map['isTimeBased'] == null;
+    final isTimeBasedValue = map['isTimeBased'] ?? map['is_time_based'];
+    final isTimeBased = isTimeBasedValue == 1 || isTimeBasedValue == true || (isTimeBasedValue == null && targetMinutes > 0);
     
     return Routine(
       id: id,
@@ -731,6 +732,8 @@ class DatabaseService {
     final note = map['note']?.toString() ?? '';
     final mood = (map['mood'] ?? 3) as int;
     final tagsStr = map['tags']?.toString() ?? '';
+    final completedValue = map['completed'];
+    final completed = completedValue is bool ? (completedValue ? 1 : 0) : (completedValue as int? ?? 0);
     
     return DailyNote(
       id: id,
@@ -739,6 +742,7 @@ class DatabaseService {
       note: note,
       mood: mood,
       tags: tagsStr.isNotEmpty ? tagsStr.split(',') : [],
+      isCompleted: completed == 1,
     );
   }
 }
