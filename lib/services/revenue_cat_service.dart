@@ -94,9 +94,22 @@ class RevenueCatService {
     final expiryDate =
         customerInfo.entitlements.active['premium']?.expirationDate;
 
-    await _supabase.from('profiles').update({
+    final data = {
       'subscription_type': isPremium ? 'premium' : 'free',
       'premium_until': expiryDate,
-    }).eq('id', userId);
+    };
+
+    // Her iki tabloya da yaz
+    try {
+      await _supabase.from('profiles').update(data).eq('id', userId);
+    } catch (e) {
+      // profiles tablosu yoksa devam et
+    }
+    
+    try {
+      await _supabase.from('user_profiles').update(data).eq('user_id', userId);
+    } catch (e) {
+      // user_profiles tablosu yoksa devam et
+    }
   }
 }

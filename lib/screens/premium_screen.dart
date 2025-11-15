@@ -235,6 +235,14 @@ class PremiumScreen extends StatelessWidget {
                   style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
                   textAlign: TextAlign.center,
                 ),
+                const SizedBox(height: 16),
+                TextButton(
+                  onPressed: () => _restorePurchases(context, isTurkish),
+                  child: Text(
+                    isTurkish ? 'Satın Alımları Geri Yükle' : 'Restore Purchases',
+                    style: TextStyle(color: Colors.amber.shade700),
+                  ),
+                ),
               ],
             ),
           ),
@@ -367,5 +375,61 @@ class PremiumScreen extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  void _restorePurchases(BuildContext context, bool isTurkish) async {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(child: CircularProgressIndicator()),
+    );
+
+    try {
+      final success = await RevenueCatService.restorePurchases();
+      
+      if (!context.mounted) return;
+      Navigator.pop(context);
+
+      if (success) {
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: Row(
+              children: [
+                Icon(Icons.check_circle, color: Colors.green.shade600),
+                const SizedBox(width: 8),
+                Text(isTurkish ? 'Başarılı!' : 'Success!'),
+              ],
+            ),
+            content: Text(
+              isTurkish
+                  ? 'Satın alımlarınız geri yüklendi!'
+                  : 'Your purchases have been restored!',
+            ),
+            actions: [
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  Navigator.pop(context);
+                },
+                child: Text(isTurkish ? 'Tamam' : 'OK'),
+              ),
+            ],
+          ),
+        );
+      } else {
+        _showError(
+          context,
+          isTurkish,
+          isTurkish
+              ? 'Geri yüklenecek satın alma bulunamadı'
+              : 'No purchases found to restore',
+        );
+      }
+    } catch (e) {
+      if (!context.mounted) return;
+      Navigator.pop(context);
+      _showError(context, isTurkish, e.toString());
+    }
   }
 }
