@@ -42,6 +42,18 @@ class _AddRoutineScreenState extends State<AddRoutineScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            Text(
+              AppLocalizations.get('custom_motivation', widget.languageCode),
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 16),
+            _buildCustomMotivationForm(),
+            const SizedBox(height: 24),
+            const Divider(),
+            const SizedBox(height: 16),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -65,18 +77,6 @@ class _AddRoutineScreenState extends State<AddRoutineScreen> {
             _buildCategoryTabs(),
             const SizedBox(height: 16),
             _buildPredefinedRoutines(),
-            const SizedBox(height: 24),
-            const Divider(),
-            const SizedBox(height: 16),
-            Text(
-              AppLocalizations.get('custom_motivation', widget.languageCode),
-              style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 16),
-            _buildCustomMotivationForm(),
           ],
         ),
       ),

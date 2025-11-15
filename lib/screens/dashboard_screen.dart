@@ -453,9 +453,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
         margin: const EdgeInsets.only(bottom: 8),
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: Colors.grey.shade50,
+          color: Theme.of(context).brightness == Brightness.dark
+              ? Colors.grey.shade800
+              : Colors.grey.shade50,
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: Colors.grey.shade200),
+          border: Border.all(
+            color: Theme.of(context).brightness == Brightness.dark
+                ? Colors.grey.shade700
+                : Colors.grey.shade200,
+          ),
         ),
         child: Row(
           children: [
@@ -711,7 +717,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 margin: const EdgeInsets.only(bottom: 6),
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: Colors.grey.shade50,
+                  color: Theme.of(context).brightness == Brightness.dark
+                      ? Colors.grey.shade800
+                      : Colors.grey.shade50,
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Row(
@@ -773,11 +781,29 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   ),
                 ),
             ] else
-              Text(
-                AppLocalizations.get('no_motivations_added_yet', widget.languageCode),
-                style: TextStyle(
-                  color: Colors.grey.shade600,
-                  fontSize: 14,
+              Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    children: [
+                      Icon(
+                        isCompleted ? Icons.check_circle_outline : Icons.pending_outlined,
+                        size: 48,
+                        color: Colors.grey.shade400,
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        isCompleted
+                            ? (widget.languageCode == 'tr' ? 'Henüz tamamlanan rutin yok' : 'No completed routines yet')
+                            : (widget.languageCode == 'tr' ? 'Tüm rutinler tamamlandı!' : 'All routines completed!'),
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                  ),
                 ),
               ),
           ],
@@ -866,7 +892,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 margin: const EdgeInsets.only(bottom: 8),
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: Colors.grey.shade50,
+                  color: Theme.of(context).brightness == Brightness.dark
+                      ? Colors.grey.shade800
+                      : Colors.grey.shade50,
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Row(
@@ -956,10 +984,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
             const SizedBox(height: 16),
             TextField(
               controller: noteController,
+              style: TextStyle(
+                color: Theme.of(context).brightness == Brightness.dark
+                    ? Colors.white
+                    : Colors.black,
+              ),
               decoration: InputDecoration(
                 labelText: AppLocalizations.get('note', widget.languageCode),
                 hintText: AppLocalizations.get('add_note_hint', widget.languageCode),
                 border: const OutlineInputBorder(),
+                filled: true,
+                fillColor: Theme.of(context).brightness == Brightness.dark
+                    ? Colors.grey.shade800
+                    : Colors.white,
               ),
               maxLines: 3,
               autofocus: true,

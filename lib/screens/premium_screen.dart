@@ -254,7 +254,13 @@ class PremiumScreen extends StatelessWidget {
       Navigator.pop(context);
 
       if (packages.isEmpty) {
-        _showError(context, isTurkish, isTurkish ? 'Paketler yüklenemedi' : 'Failed to load packages');
+        _showError(
+          context, 
+          isTurkish, 
+          isTurkish 
+            ? 'Paketler yüklenemedi. Google Play Console\'da ürün yapılandırmasını kontrol edin.'
+            : 'Failed to load packages. Check product configuration in Google Play Console.'
+        );
         return;
       }
 

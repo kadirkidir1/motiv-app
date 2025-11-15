@@ -23,6 +23,7 @@ class _RoutineDetailSetupScreenState extends State<RoutineDetailSetupScreen> {
 
   String? selectedSubType;
   List<String> selectedDays = [];
+  List<int> selectedMonthDays = [];
   RoutineFrequency selectedFrequency = RoutineFrequency.daily;
   bool hasAlarm = false;
   TimeOfDay? alarmTime;
@@ -84,6 +85,7 @@ class _RoutineDetailSetupScreenState extends State<RoutineDetailSetupScreen> {
               _buildFrequencySelection(),
               const SizedBox(height: 20),
               if (selectedFrequency == RoutineFrequency.weekly) _buildDaySelection(),
+              if (selectedFrequency == RoutineFrequency.monthly) _buildMonthDaySelection(),
               _buildTargetTime(),
               const SizedBox(height: 20),
               _buildAlarmSettings(),
@@ -197,6 +199,9 @@ class _RoutineDetailSetupScreenState extends State<RoutineDetailSetupScreen> {
                         if (frequency != RoutineFrequency.weekly) {
                           selectedDays.clear();
                         }
+                        if (frequency != RoutineFrequency.monthly) {
+                          selectedMonthDays.clear();
+                        }
                       });
                     }
                   },
@@ -239,6 +244,43 @@ class _RoutineDetailSetupScreenState extends State<RoutineDetailSetupScreen> {
               },
             );
           }).toList(),
+        ),
+        const SizedBox(height: 20),
+      ],
+    );
+  }
+
+  Widget _buildMonthDaySelection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          _currentLanguageCode == 'tr' ? 'Ayın Hangi Günleri?' : 'Which Days of Month?',
+          style: const TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(height: 12),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: List.generate(31, (index) {
+            final day = index + 1;
+            return FilterChip(
+              label: Text('$day'),
+              selected: selectedMonthDays.contains(day),
+              onSelected: (selected) {
+                setState(() {
+                  if (selected) {
+                    selectedMonthDays.add(day);
+                  } else {
+                    selectedMonthDays.remove(day);
+                  }
+                });
+              },
+            );
+          }),
         ),
         const SizedBox(height: 20),
       ],
@@ -397,6 +439,13 @@ class _RoutineDetailSetupScreenState extends State<RoutineDetailSetupScreen> {
         );
         return;
       }
+      
+      if (selectedFrequency == RoutineFrequency.monthly && selectedMonthDays.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(_currentLanguageCode == 'tr' ? 'Lütfen en az bir gün seçin' : 'Please select at least one day')),
+        );
+        return;
+      }
 
       final detailedTitle = selectedSubType != null 
           ? '${widget.baseMotivation['title']} - $selectedSubType'
@@ -432,6 +481,11 @@ class _RoutineDetailSetupScreenState extends State<RoutineDetailSetupScreen> {
     
     if (selectedFrequency == RoutineFrequency.weekly && selectedDays.isNotEmpty) {
       description += ' - ${selectedDays.join(', ')}';
+    }
+    
+    if (selectedFrequency == RoutineFrequency.monthly && selectedMonthDays.isNotEmpty) {
+      final sortedDays = List<int>.from(selectedMonthDays)..sort();
+      description += ' - ${_currentLanguageCode == 'tr' ? 'Ayın' : 'Day'} ${sortedDays.join(', ')}';
     }
     
     if (_notesController.text.isNotEmpty) {

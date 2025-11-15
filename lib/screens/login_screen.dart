@@ -56,6 +56,26 @@ class _LoginScreenState extends State<LoginScreen> {
       body: SafeArea(
         child: Stack(
           children: [
+            Positioned(
+              top: 10,
+              right: 10,
+              child: PopupMenuButton<String>(
+                icon: const Icon(Icons.language, size: 28),
+                onSelected: (value) async {
+                  await LanguageService.setLanguage(value);
+                  setState(() {
+                    _languageCode = value;
+                  });
+                },
+                itemBuilder: (context) => const [
+                  PopupMenuItem(value: 'tr', child: Text('🇹🇷 Türkçe')),
+                  PopupMenuItem(value: 'en', child: Text('🇬🇧 English')),
+                  PopupMenuItem(value: 'de', child: Text('🇩🇪 Deutsch')),
+                  PopupMenuItem(value: 'fr', child: Text('🇫🇷 Français')),
+                  PopupMenuItem(value: 'it', child: Text('🇮🇹 Italiano')),
+                ],
+              ),
+            ),
             SingleChildScrollView(
               padding: const EdgeInsets.all(24.0),
               child: Column(
@@ -375,6 +395,18 @@ class _LoginScreenState extends State<LoginScreen> {
               _isSignUp
                   ? AppLocalizations.get('already_have_account', _languageCode)
                   : AppLocalizations.get('dont_have_account', _languageCode),
+            ),
+          ),
+          const SizedBox(height: 20),
+          TextButton.icon(
+            onPressed: _continueAsGuest,
+            icon: const Icon(Icons.person_outline),
+            label: Text(
+              _languageCode == 'tr' ? 'Giriş Yapmadan Devam Et' : 'Continue Without Login',
+              style: const TextStyle(fontSize: 14),
+            ),
+            style: TextButton.styleFrom(
+              foregroundColor: Colors.grey.shade700,
             ),
           ),
         ],
@@ -737,6 +769,29 @@ class _LoginScreenState extends State<LoginScreen> {
             builder: (context) => ProfileSetupScreen(
               email: AuthService.getCurrentUser()!.email!,
             ),
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _continueAsGuest() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('is_guest', true);
+      
+      if (mounted) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const HomeScreen()),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(_languageCode == 'tr' ? 'Bir hata oluştu' : 'An error occurred'),
+            backgroundColor: Colors.red,
           ),
         );
       }

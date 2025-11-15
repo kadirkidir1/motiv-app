@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:provider/provider.dart';
 import 'screens/splash_screen.dart';
 import 'screens/reset_password_screen.dart';
 import 'services/notification_service.dart';
 import 'services/deep_link_service.dart';
 import 'services/revenue_cat_service.dart';
+import 'services/ad_service.dart';
+import 'services/theme_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -21,8 +24,14 @@ void main() async {
   await NotificationService.initialize();
   await NotificationService.rescheduleAllNotifications();
   await RevenueCatService.initialize();
+  await AdService.initialize();
 
-  runApp(const MotivApp());
+  runApp(
+    ChangeNotifierProvider(
+      create: (_) => ThemeService(),
+      child: const MotivApp(),
+    ),
+  );
 }
 
 class MotivApp extends StatefulWidget {
@@ -57,18 +66,21 @@ class _MotivAppState extends State<MotivApp> {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      navigatorKey: navigatorKey,
-      title: 'Motiv App',
-      theme: ThemeData(
-        primarySwatch: Colors.blue,
-        useMaterial3: true,
-      ),
-      home: const SplashScreen(),
-      routes: {
-        '/reset-password': (context) => const ResetPasswordScreen(),
+    return Consumer<ThemeService>(
+      builder: (context, themeService, _) {
+        return MaterialApp(
+          navigatorKey: navigatorKey,
+          title: 'Motiv App',
+          theme: ThemeService.lightTheme,
+          darkTheme: ThemeService.darkTheme,
+          themeMode: themeService.themeMode,
+          home: const SplashScreen(),
+          routes: {
+            '/reset-password': (context) => const ResetPasswordScreen(),
+          },
+          debugShowCheckedModeBanner: false,
+        );
       },
-      debugShowCheckedModeBanner: false,
     );
   }
 }

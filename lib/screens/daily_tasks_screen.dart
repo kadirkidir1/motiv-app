@@ -206,23 +206,24 @@ class _DailyTasksScreenState extends State<DailyTasksScreen> {
 
 
   Widget _buildTaskCard(DailyTask task) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     Color cardColor;
     IconData statusIcon;
     Color statusColor;
 
     switch (task.status) {
       case TaskStatus.completed:
-        cardColor = Colors.green.shade50;
+        cardColor = isDark ? Colors.green.shade900.withValues(alpha: 0.3) : Colors.green.shade50;
         statusIcon = Icons.check_circle;
         statusColor = Colors.green;
         break;
       case TaskStatus.expired:
-        cardColor = Colors.red.shade50;
+        cardColor = isDark ? Colors.red.shade900.withValues(alpha: 0.3) : Colors.red.shade50;
         statusIcon = Icons.cancel;
         statusColor = Colors.red;
         break;
       default:
-        cardColor = Colors.blue.shade50;
+        cardColor = isDark ? Colors.blue.shade900.withValues(alpha: 0.3) : Colors.blue.shade50;
         statusIcon = Icons.schedule;
         statusColor = Colors.blue;
     }

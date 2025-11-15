@@ -9,6 +9,8 @@ import 'account_screen.dart';
 import '../services/language_service.dart';
 import '../services/database_service.dart';
 import '../services/subscription_service.dart';
+import '../services/ad_service.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'premium_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -23,12 +25,29 @@ class _HomeScreenState extends State<HomeScreen> {
   List<Routine> completedRoutines = [];
   int _currentIndex = 0;
   String _languageCode = 'tr';
+  BannerAd? _bannerAd;
+  bool _isPremium = false;
 
   @override
   void initState() {
     super.initState();
     _loadLanguage();
     _loadMotivations();
+    _checkPremiumAndLoadAd();
+  }
+
+  Future<void> _checkPremiumAndLoadAd() async {
+    _isPremium = await SubscriptionService.isPremium();
+    if (!_isPremium) {
+      _bannerAd = AdService.createBannerAd()..load();
+    }
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void dispose() {
+    _bannerAd?.dispose();
+    super.dispose();
   }
 
   Future<void> _loadMotivations() async {
@@ -57,37 +76,38 @@ class _HomeScreenState extends State<HomeScreen> {
         backgroundColor: Colors.green.shade300,
         foregroundColor: Colors.white,
         actions: [
-          GestureDetector(
-            onTap: () {
-              final newLanguage = _languageCode == 'tr' ? 'en' : 'tr';
-              _changeLanguage(newLanguage);
-            },
-            child: Container(
-              margin: const EdgeInsets.only(right: 16),
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.2),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    _languageCode == 'tr' ? '🇹🇷' : '🇺🇸',
-                    style: const TextStyle(fontSize: 16),
-                  ),
-                  const SizedBox(width: 4),
-                  Text(
-                    _languageCode.toUpperCase(),
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
+          PopupMenuButton<String>(
+            icon: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  _languageCode == 'tr' ? '🇹🇷' : 
+                  _languageCode == 'en' ? '🇬🇧' :
+                  _languageCode == 'de' ? '🇩🇪' :
+                  _languageCode == 'fr' ? '🇫🇷' : '🇮🇹',
+                  style: const TextStyle(fontSize: 16),
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  _languageCode.toUpperCase(),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
                     ),
                   ),
-                ],
-              ),
+              ],
             ),
+            onSelected: (value) {
+              _changeLanguage(value);
+            },
+            itemBuilder: (context) => const [
+              PopupMenuItem(value: 'tr', child: Text('🇹🇷 Türkçe')),
+              PopupMenuItem(value: 'en', child: Text('🇬🇧 English')),
+              PopupMenuItem(value: 'de', child: Text('🇩🇪 Deutsch')),
+              PopupMenuItem(value: 'fr', child: Text('🇫🇷 Français')),
+              PopupMenuItem(value: 'it', child: Text('🇮🇹 Italiano')),
+            ],
           ),
         ],
       ) : _currentIndex == 1 ? AppBar(
@@ -119,7 +139,15 @@ class _HomeScreenState extends State<HomeScreen> {
         foregroundColor: Colors.white,
       ),
       body: _getSelectedPage(),
-      bottomNavigationBar: BottomNavigationBar(
+      bottomNavigationBar: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (_bannerAd != null && !_isPremium)
+            SizedBox(
+              height: 50,
+              child: AdWidget(ad: _bannerAd!),
+            ),
+          BottomNavigationBar(
         currentIndex: _currentIndex,
         onTap: (index) {
           setState(() {
@@ -144,6 +172,8 @@ class _HomeScreenState extends State<HomeScreen> {
             icon: const Icon(Icons.account_circle),
             label: AppLocalizations.get('account', _languageCode),
           ),
+        ],
+      ),
         ],
       ),
       floatingActionButton: _currentIndex == 1 ? FloatingActionButton(

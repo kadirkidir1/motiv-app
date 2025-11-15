@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'login_screen.dart';
 import 'home_screen.dart';
-import 'profile_setup_screen.dart';
+import 'onboarding_screen.dart';
 import '../services/motivation_quotes.dart';
 import '../services/language_service.dart';
 import '../services/auth_service.dart';
-import '../services/profile_service.dart';
 import '../services/database_service.dart';
 import 'dart:developer' as developer;
 
@@ -39,6 +39,37 @@ class _SplashScreenState extends State<SplashScreen> {
     await Future.delayed(const Duration(seconds: 2));
 
     if (mounted) {
+      final prefs = await SharedPreferences.getInstance();
+      
+      // Check if onboarding completed
+      final onboardingCompleted = prefs.getBool('onboarding_completed') ?? false;
+      
+      if (!onboardingCompleted) {
+        // First time user - show onboarding
+        if (mounted) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => const OnboardingScreen()),
+          );
+        }
+        return;
+      }
+      
+      // Check if guest mode
+      final isGuest = prefs.getBool('is_guest') ?? false;
+      
+      if (isGuest) {
+        // Guest mode - go directly to home
+        developer.log('Guest mode detected', name: 'SplashScreen');
+        if (mounted) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => const HomeScreen()),
+          );
+        }
+        return;
+      }
+      
       final isSignedIn = AuthService.isSignedIn();
 
       if (mounted) {
@@ -54,28 +85,12 @@ class _SplashScreenState extends State<SplashScreen> {
             developer.log('Sync error: $e', name: 'SplashScreen');
           }
           
-          // Check if profile is complete
-          final profile = await ProfileService.getProfile();
-
+          // Go to home screen
           if (mounted) {
-            if (profile?.fullName == null || profile?.age == null ||
-                profile?.country == null || profile?.city == null) {
-              // Profile incomplete, go to setup
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => ProfileSetupScreen(
-                    email: AuthService.getCurrentUser()!.email!,
-                  ),
-                ),
-              );
-            } else {
-              // Profile complete, go to home
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(builder: (context) => const HomeScreen()),
-              );
-            }
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (context) => const HomeScreen()),
+            );
           }
         } else {
           // Go to login screen
