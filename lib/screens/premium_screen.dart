@@ -265,7 +265,7 @@ class PremiumScreen extends StatelessWidget {
       }
 
       final yearlyPackage = packages.firstWhere(
-        (p) => p.storeProduct.identifier == 'motiv_premium_yearly',
+        (p) => p.storeProduct.identifier == 'premium_yearly',
         orElse: () => packages.first,
       );
 
