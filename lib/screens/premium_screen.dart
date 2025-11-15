@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../services/revenue_cat_service.dart';
+import 'login_screen.dart';
 
 class PremiumScreen extends StatelessWidget {
   final String languageCode;
@@ -148,99 +150,133 @@ class PremiumScreen extends StatelessWidget {
   }
 
   Widget _buildPricingCard(BuildContext context, bool isTurkish) {
-    return Card(
-      elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Container(
-        padding: const EdgeInsets.all(24),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(16),
-          gradient: LinearGradient(
-            colors: [Colors.amber.shade50, Colors.orange.shade50],
-          ),
-        ),
-        child: Column(
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.start,
+    return FutureBuilder(
+      future: RevenueCatService.getAvailablePackages(),
+      builder: (context, snapshot) {
+        String priceText = '120';
+        String monthlyPrice = '10';
+        
+        if (snapshot.hasData && snapshot.data!.isNotEmpty) {
+          final package = snapshot.data!.firstWhere(
+            (p) => p.storeProduct.identifier == 'premium_yearly',
+            orElse: () => snapshot.data!.first,
+          );
+          priceText = package.storeProduct.priceString.replaceAll('₺', '').replaceAll(',', '.').trim();
+          final price = double.tryParse(priceText) ?? 120;
+          monthlyPrice = (price / 12).toStringAsFixed(2);
+        }
+        
+        return Card(
+          elevation: 4,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          child: Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16),
+              gradient: LinearGradient(
+                colors: [Colors.amber.shade50, Colors.orange.shade50],
+              ),
+            ),
+            child: Column(
               children: [
+                if (snapshot.connectionState == ConnectionState.waiting)
+                  const CircularProgressIndicator()
+                else
+                  Text(
+                    snapshot.hasData && snapshot.data!.isNotEmpty
+                        ? snapshot.data!.first.storeProduct.priceString
+                        : '₺120,00',
+                    style: TextStyle(
+                      fontSize: 48,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.amber.shade700,
+                    ),
+                  ),
                 Text(
-                  '₺',
+                  isTurkish ? '/yıl' : '/year',
+                  style: TextStyle(fontSize: 16, color: Colors.grey.shade600),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  isTurkish ? 'Sadece ayda ₺$monthlyPrice' : 'Only ₺$monthlyPrice/month',
                   style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.amber.shade700,
+                    fontSize: 14,
+                    color: Colors.green.shade700,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
-                Text(
-                  '100',
-                  style: TextStyle(
-                    fontSize: 48,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.amber.shade700,
+                const SizedBox(height: 24),
+                SizedBox(
+                  width: double.infinity,
+                  height: 56,
+                  child: ElevatedButton(
+                    onPressed: () => _handlePurchase(context, isTurkish),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.amber.shade700,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: Text(
+                      isTurkish ? 'Premium\'a Geç' : 'Go Premium',
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
                   ),
                 ),
+                const SizedBox(height: 12),
                 Text(
-                  '.00',
-                  style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.amber.shade700,
-                  ),
+                  isTurkish
+                      ? 'KDV dahil fiyat. İstediğin zaman iptal et.'
+                      : 'Price includes VAT. Cancel anytime.',
+                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                  textAlign: TextAlign.center,
                 ),
               ],
             ),
-            Text(
-              isTurkish ? '/yıl' : '/year',
-              style: TextStyle(fontSize: 16, color: Colors.grey.shade600),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              isTurkish ? 'Sadece ayda ₺8.33' : 'Only ₺8.33/month',
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.green.shade700,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            const SizedBox(height: 24),
-            SizedBox(
-              width: double.infinity,
-              height: 56,
-              child: ElevatedButton(
-                onPressed: () => _handlePurchase(context, isTurkish),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.amber.shade700,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                child: Text(
-                  isTurkish ? 'Premium\'a Geç' : 'Go Premium',
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              isTurkish
-                  ? 'İlk 1 ay ücretsiz! İstediğin zaman iptal et.'
-                  : 'First month free! Cancel anytime.',
-              style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 
   void _handlePurchase(BuildContext context, bool isTurkish) async {
+    // Giriş kontrolü
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user == null) {
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: Text(isTurkish ? 'Giriş Gerekli' : 'Login Required'),
+          content: Text(
+            isTurkish
+                ? 'Premium üyelik satın almak için giriş yapmalısınız.'
+                : 'You must login to purchase premium membership.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text(isTurkish ? 'İptal' : 'Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(context);
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(builder: (context) => const LoginScreen()),
+                );
+              },
+              child: Text(isTurkish ? 'Giriş Yap' : 'Login'),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
+
     showDialog(
       context: context,
       barrierDismissible: false,

@@ -59,25 +59,15 @@ class RevenueCatService {
 
   static Future<List<Package>> getAvailablePackages() async {
     try {
-      await Purchases.setLogLevel(LogLevel.debug);
       final offerings = await Purchases.getOfferings();
       
-      print('RevenueCat Offerings: ${offerings.all.keys}');
-      print('Current Offering: ${offerings.current?.identifier}');
-      
       if (offerings.current != null) {
-        print('Available Packages: ${offerings.current!.availablePackages.length}');
-        for (var package in offerings.current!.availablePackages) {
-          print('Package: ${package.identifier}, Product: ${package.storeProduct.identifier}');
-        }
         return offerings.current!.availablePackages;
       }
       
-      print('No current offering found');
       return [];
     } catch (e) {
-      print('RevenueCat Error: $e');
-      rethrow;
+      return [];
     }
   }
 
