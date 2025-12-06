@@ -22,7 +22,7 @@ class DatabaseService {
     String path = join(await getDatabasesPath(), 'motiv_app.db');
     return await openDatabase(
       path,
-      version: 4,
+      version: 6,
       onCreate: _createTables,
       onUpgrade: _onUpgrade,
     );
@@ -55,6 +55,75 @@ class DatabaseService {
       await db.execute('ALTER TABLE daily_tasks ADD COLUMN alarmTime TEXT');
       await db.execute('ALTER TABLE daily_tasks ADD COLUMN deadlineType TEXT DEFAULT "TaskDeadlineType.hours"');
     }
+    if (oldVersion < 5) {
+      // Create routine_completions table
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS routine_completions(
+          id TEXT PRIMARY KEY,
+          routineId TEXT NOT NULL,
+          date TEXT NOT NULL,
+          completedAt TEXT NOT NULL,
+          minutesSpent INTEGER DEFAULT 0,
+          notes TEXT,
+          syncedToCloud INTEGER DEFAULT 0,
+          UNIQUE(routineId, date)
+        )
+      ''');
+      
+      // Create task_completions table
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS task_completions(
+          id TEXT PRIMARY KEY,
+          taskId TEXT NOT NULL,
+          completedAt TEXT NOT NULL,
+          completionTimeMinutes INTEGER,
+          notes TEXT,
+          syncedToCloud INTEGER DEFAULT 0
+        )
+      ''');
+      
+      // Migrate existing daily_notes data to routine_completions
+      await db.execute('''
+        INSERT INTO routine_completions (id, routineId, date, completedAt, minutesSpent, notes)
+        SELECT id, routineId, date, date, minutesSpent, note
+        FROM daily_notes
+        WHERE completed = 1
+      ''');
+      
+      // Drop completed and minutesSpent columns from daily_notes
+      // SQLite doesn't support DROP COLUMN, so we need to recreate the table
+      await db.execute('''
+        CREATE TABLE daily_notes_new(
+          id TEXT PRIMARY KEY,
+          routineId TEXT NOT NULL,
+          date TEXT NOT NULL,
+          note TEXT,
+          mood INTEGER NOT NULL,
+          tags TEXT,
+          syncedToCloud INTEGER DEFAULT 0
+        )
+      ''');
+      
+      await db.execute('''
+        INSERT INTO daily_notes_new (id, routineId, date, note, mood, tags, syncedToCloud)
+        SELECT id, routineId, date, note, mood, tags, syncedToCloud
+        FROM daily_notes
+      ''');
+      
+      await db.execute('DROP TABLE daily_notes');
+      await db.execute('ALTER TABLE daily_notes_new RENAME TO daily_notes');
+      
+      // Add isArchived column to routines
+      await db.execute('ALTER TABLE routines ADD COLUMN isArchived INTEGER DEFAULT 0');
+      
+      // Add completedAt column to daily_tasks
+      await db.execute('ALTER TABLE daily_tasks ADD COLUMN completedAt TEXT');
+    }
+    if (oldVersion < 6) {
+      // Add customNotificationMessage to routines and daily_tasks
+      await db.execute('ALTER TABLE routines ADD COLUMN customNotificationMessage TEXT');
+      await db.execute('ALTER TABLE daily_tasks ADD COLUMN customNotificationMessage TEXT');
+    }
   }
 
   static Future<void> _createTables(Database db, int version) async {
@@ -71,6 +140,7 @@ class DatabaseService {
         isCompleted INTEGER NOT NULL,
         targetMinutes INTEGER NOT NULL,
         isTimeBased INTEGER DEFAULT 1,
+        customNotificationMessage TEXT,
         syncedToCloud INTEGER DEFAULT 0
       )
     ''');
@@ -87,6 +157,7 @@ class DatabaseService {
         hasAlarm INTEGER DEFAULT 0,
         alarmTime TEXT,
         deadlineType TEXT DEFAULT 'TaskDeadlineType.hours',
+        customNotificationMessage TEXT,
         syncedToCloud INTEGER DEFAULT 0
       )
     ''');
@@ -96,11 +167,33 @@ class DatabaseService {
         id TEXT PRIMARY KEY,
         routineId TEXT NOT NULL,
         date TEXT NOT NULL,
-        note TEXT NOT NULL,
+        note TEXT,
         mood INTEGER NOT NULL,
         tags TEXT,
-        completed INTEGER NOT NULL,
-        minutesSpent INTEGER NOT NULL,
+        syncedToCloud INTEGER DEFAULT 0
+      )
+    ''');
+
+    await db.execute('''
+      CREATE TABLE routine_completions(
+        id TEXT PRIMARY KEY,
+        routineId TEXT NOT NULL,
+        date TEXT NOT NULL,
+        completedAt TEXT NOT NULL,
+        minutesSpent INTEGER DEFAULT 0,
+        notes TEXT,
+        syncedToCloud INTEGER DEFAULT 0,
+        UNIQUE(routineId, date)
+      )
+    ''');
+
+    await db.execute('''
+      CREATE TABLE task_completions(
+        id TEXT PRIMARY KEY,
+        taskId TEXT NOT NULL,
+        completedAt TEXT NOT NULL,
+        completionTimeMinutes INTEGER,
+        notes TEXT,
         syncedToCloud INTEGER DEFAULT 0
       )
     ''');
@@ -144,6 +237,7 @@ class DatabaseService {
           routine.title,
           routine.alarmTime!,
           routine.isTimeBased,
+          customMessage: routine.customNotificationMessage,
         );
       } catch (e) {
         developer.log('Notification scheduling error: $e', name: 'DatabaseService');
@@ -287,10 +381,10 @@ class DatabaseService {
   }
 
   // Daily Notes CRUD
-  static Future<void> insertDailyNote(DailyNote note, bool completed, int minutesSpent) async {
+  static Future<void> insertDailyNote(DailyNote note) async {
     final db = await database;
-    await db.insert('daily_notes', _noteToMap(note, completed, minutesSpent));
-    _syncNoteToCloud(note, completed, minutesSpent);
+    await db.insert('daily_notes', _noteToMap(note));
+    _syncNoteToCloud(note);
   }
 
   static Future<List<DailyNote>> getDailyNotes(String routineId) async {
@@ -304,15 +398,15 @@ class DatabaseService {
     return List.generate(maps.length, (i) => _noteFromMap(maps[i]));
   }
 
-  static Future<void> updateDailyNote(DailyNote note, bool completed, int minutesSpent) async {
+  static Future<void> updateDailyNote(DailyNote note) async {
     final db = await database;
     await db.update(
       'daily_notes',
-      _noteToMap(note, completed, minutesSpent),
+      _noteToMap(note),
       where: 'id = ?',
       whereArgs: [note.id],
     );
-    _syncNoteToCloud(note, completed, minutesSpent);
+    _syncNoteToCloud(note);
   }
 
   static Future<void> deleteDailyNote(String id) async {
@@ -405,7 +499,7 @@ class DatabaseService {
     }
   }
 
-  static Future<void> _syncNoteToCloud(DailyNote note, bool completed, int minutesSpent) async {
+  static Future<void> _syncNoteToCloud(DailyNote note) async {
     final user = _supabase.auth.currentUser;
     if (user == null) {
       developer.log('❌ No user logged in, skipping cloud sync', name: 'DatabaseService');
@@ -413,7 +507,7 @@ class DatabaseService {
     }
 
     try {
-      final noteData = _noteToMap(note, completed, minutesSpent, forCloud: true);
+      final noteData = _noteToMap(note, forCloud: true);
       noteData['user_id'] = user.id;
       noteData.remove('syncedToCloud');
       
@@ -531,15 +625,13 @@ class DatabaseService {
       
       for (var data in notesResponse) {
           developer.log('📦 Note data from cloud: $data', name: 'DatabaseService');
-          final completed = (data['completed'] == 1 || data['completed'] == true);
-          final minutesSpent = (data['minutesSpent'] ?? data['minutes_spent'] ?? 0) as int;
           final note = _noteFromMap(data);
           await db.insert(
             'daily_notes',
-            _noteToMap(note, completed, minutesSpent),
+            _noteToMap(note),
             conflictAlgorithm: ConflictAlgorithm.replace,
           );
-          developer.log('✅ Synced note: ${note.id}, completed=$completed, minutes=$minutesSpent', name: 'DatabaseService');
+          developer.log('✅ Synced note: ${note.id}', name: 'DatabaseService');
         }
       
       developer.log('🎉 Sync from cloud completed successfully', name: 'DatabaseService');
@@ -565,6 +657,7 @@ class DatabaseService {
         'is_completed': routine.isCompleted ? 1 : 0,
         'target_minutes': routine.targetMinutes,
         'is_time_based': routine.isTimeBased ? 1 : 0,
+        'custom_notification_message': routine.customNotificationMessage,
       };
     }
     
@@ -580,6 +673,7 @@ class DatabaseService {
       'isCompleted': routine.isCompleted ? 1 : 0,
       'targetMinutes': routine.targetMinutes,
       'isTimeBased': routine.isTimeBased ? 1 : 0,
+      'customNotificationMessage': routine.customNotificationMessage,
     };
   }
 
@@ -601,6 +695,7 @@ class DatabaseService {
     final targetMinutes = (map['targetMinutes'] ?? map['target_minutes'] ?? 0) as int;
     final isTimeBasedValue = map['isTimeBased'] ?? map['is_time_based'];
     final isTimeBased = isTimeBasedValue == 1 || isTimeBasedValue == true || (isTimeBasedValue == null && targetMinutes > 0);
+    final customNotificationMessage = map['customNotificationMessage'] ?? map['custom_notification_message'];
     
     return Routine(
       id: id,
@@ -620,6 +715,7 @@ class DatabaseService {
       isCompleted: isCompleted,
       targetMinutes: targetMinutes,
       isTimeBased: isTimeBased,
+      customNotificationMessage: customNotificationMessage?.toString(),
     );
   }
 
@@ -637,6 +733,7 @@ class DatabaseService {
         'has_alarm': task.hasAlarm ? 1 : 0,
         'alarm_time': task.alarmTime?.toIso8601String(),
         'deadline_type': task.deadlineType.toString(),
+        'custom_notification_message': task.customNotificationMessage,
       };
     }
     
@@ -649,6 +746,10 @@ class DatabaseService {
       'expiresAt': task.expiresAt.toIso8601String(),
       'status': task.status.toString(),
       'addToCalendar': task.addToCalendar ? 1 : 0,
+      'hasAlarm': task.hasAlarm ? 1 : 0,
+      'alarmTime': task.alarmTime?.toIso8601String(),
+      'deadlineType': task.deadlineType.toString(),
+      'customNotificationMessage': task.customNotificationMessage,
     };
   }
 
@@ -664,6 +765,7 @@ class DatabaseService {
     final hasAlarm = map['hasAlarm'] == 1 || map['has_alarm'] == true || map['has_alarm'] == 1;
     final alarmTimeStr = map['alarmTime'] ?? map['alarm_time'];
     final deadlineTypeStr = map['deadlineType'] ?? map['deadline_type'] ?? 'TaskDeadlineType.hours';
+    final customNotificationMessage = map['customNotificationMessage'] ?? map['custom_notification_message'];
     
     return DailyTask(
       id: id,
@@ -682,6 +784,7 @@ class DatabaseService {
         (e) => e.toString() == deadlineTypeStr,
         orElse: () => TaskDeadlineType.hours,
       ),
+      customNotificationMessage: customNotificationMessage?.toString(),
     );
   }
 
@@ -696,7 +799,7 @@ class DatabaseService {
     }
   }
 
-  static Map<String, dynamic> _noteToMap(DailyNote note, bool completed, int minutesSpent, {bool forCloud = false}) {
+  static Map<String, dynamic> _noteToMap(DailyNote note, {bool forCloud = false}) {
     if (forCloud) {
       // Supabase için snake_case
       return {
@@ -706,8 +809,6 @@ class DatabaseService {
         'note': note.note,
         'mood': note.mood,
         'tags': note.tags.join(','),
-        'completed': completed ? 1 : 0,
-        'minutes_spent': minutesSpent,
       };
     }
     
@@ -719,8 +820,6 @@ class DatabaseService {
       'note': note.note,
       'mood': note.mood,
       'tags': note.tags.join(','),
-      'completed': completed ? 1 : 0,
-      'minutesSpent': minutesSpent,
     };
   }
 
@@ -729,11 +828,9 @@ class DatabaseService {
     final id = map['id']?.toString() ?? '';
     final routineId = map['routineId'] ?? map['routine_id'] ?? '';
     final dateStr = map['date']?.toString() ?? DateTime.now().toIso8601String();
-    final note = map['note']?.toString() ?? '';
+    final note = map['note']?.toString();
     final mood = (map['mood'] ?? 3) as int;
     final tagsStr = map['tags']?.toString() ?? '';
-    final completedValue = map['completed'];
-    final completed = completedValue is bool ? (completedValue ? 1 : 0) : (completedValue as int? ?? 0);
     
     return DailyNote(
       id: id,
@@ -742,7 +839,6 @@ class DatabaseService {
       note: note,
       mood: mood,
       tags: tagsStr.isNotEmpty ? tagsStr.split(',') : [],
-      isCompleted: completed == 1,
     );
   }
 }

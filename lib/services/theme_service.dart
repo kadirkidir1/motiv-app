@@ -30,20 +30,49 @@ class ThemeService extends ChangeNotifier {
     return ThemeData(
       useMaterial3: true,
       brightness: Brightness.light,
-      primarySwatch: Colors.blue,
-      primaryColor: Colors.blue.shade600,
-      scaffoldBackgroundColor: Colors.grey.shade50,
+      scaffoldBackgroundColor: const Color(0xFFF2F2F7),
       cardColor: Colors.white,
-      appBarTheme: AppBarTheme(
-        backgroundColor: Colors.blue.shade600,
-        foregroundColor: Colors.white,
+      appBarTheme: const AppBarTheme(
+        backgroundColor: Color(0xFFF2F2F7),
+        foregroundColor: Colors.black,
         elevation: 0,
+        centerTitle: false,
+        titleTextStyle: TextStyle(
+          color: Colors.black,
+          fontSize: 34,
+          fontWeight: FontWeight.bold,
+        ),
       ),
-      colorScheme: ColorScheme.light(
-        primary: Colors.blue.shade600,
-        secondary: Colors.blue.shade400,
+      colorScheme: const ColorScheme.light(
+        primary: Color(0xFF007AFF),
+        secondary: Color(0xFF5856D6),
         surface: Colors.white,
-        error: Colors.red.shade600,
+        error: Color(0xFFFF3B30),
+        onSurface: Colors.black,
+      ),
+      cardTheme: CardThemeData(
+        color: Colors.white,
+        elevation: 0,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ElevatedButton.styleFrom(
+          elevation: 0,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+        ),
+      ),
+      inputDecorationTheme: InputDecorationTheme(
+        filled: true,
+        fillColor: Colors.white,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: Colors.grey.shade300),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: Colors.grey.shade300),
+        ),
       ),
     );
   }
@@ -52,30 +81,52 @@ class ThemeService extends ChangeNotifier {
     return ThemeData(
       useMaterial3: true,
       brightness: Brightness.dark,
-      primarySwatch: Colors.blue,
-      primaryColor: Colors.blue.shade400,
-      scaffoldBackgroundColor: const Color(0xFF1C1C1E),
-      cardColor: const Color(0xFF2C2C2E),
+      scaffoldBackgroundColor: const Color(0xFF000000),
+      cardColor: const Color(0xFF1C1C1E),
       appBarTheme: const AppBarTheme(
-        backgroundColor: Color(0xFF2C2C2E),
+        backgroundColor: Color(0xFF000000),
         foregroundColor: Colors.white,
         elevation: 0,
-        iconTheme: IconThemeData(color: Colors.white),
+        centerTitle: false,
+        titleTextStyle: TextStyle(
+          color: Colors.white,
+          fontSize: 34,
+          fontWeight: FontWeight.bold,
+        ),
       ),
-      colorScheme: ColorScheme.dark(
-        primary: Colors.blue.shade400,
-        secondary: Colors.blue.shade300,
-        surface: const Color(0xFF2C2C2E),
-        error: Colors.red.shade400,
+      colorScheme: const ColorScheme.dark(
+        primary: Color(0xFF0A84FF),
+        secondary: Color(0xFF5E5CE6),
+        surface: Color(0xFF1C1C1E),
+        error: Color(0xFFFF453A),
         onSurface: Colors.white,
-        onPrimary: Colors.white,
       ),
       cardTheme: const CardThemeData(
-        color: Color(0xFF2C2C2E),
-        elevation: 2,
+        color: Color(0xFF1C1C1E),
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.all(Radius.circular(12)),
+        ),
       ),
-      dividerColor: Colors.grey.shade700,
-      iconTheme: const IconThemeData(color: Colors.white),
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ElevatedButton.styleFrom(
+          elevation: 0,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+        ),
+      ),
+      inputDecorationTheme: InputDecorationTheme(
+        filled: true,
+        fillColor: const Color(0xFF1C1C1E),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Color(0xFF38383A)),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Color(0xFF38383A)),
+        ),
+      ),
     );
   }
 }

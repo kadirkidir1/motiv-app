@@ -65,11 +65,12 @@ class _DailyTasksScreenState extends State<DailyTasksScreen> {
           : tasks.isEmpty
               ? _buildEmptyState()
               : _buildTasksList(activeTasks, expiredTasks, completedTasks),
-      floatingActionButton: FloatingActionButton(
+      floatingActionButton: FloatingActionButton.extended(
         heroTag: "add_task",
         onPressed: _addNewTask,
-        backgroundColor: Colors.green.shade600,
-        child: const Icon(Icons.add, color: Colors.white),
+        backgroundColor: Theme.of(context).colorScheme.primary,
+        icon: const Icon(Icons.add),
+        label: Text(AppLocalizations.get('add_daily_task', widget.languageCode)),
       ),
     );
   }
@@ -180,8 +181,12 @@ class _DailyTasksScreenState extends State<DailyTasksScreen> {
   }
 
   Widget _buildExpandableSection(String title, List<DailyTask> tasks, Color color, bool initiallyExpanded) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(12),
+      ),
       child: ExpansionTile(
         initiallyExpanded: initiallyExpanded,
         leading: CircleAvatar(
@@ -206,31 +211,29 @@ class _DailyTasksScreenState extends State<DailyTasksScreen> {
 
 
   Widget _buildTaskCard(DailyTask task) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    Color cardColor;
     IconData statusIcon;
     Color statusColor;
 
     switch (task.status) {
       case TaskStatus.completed:
-        cardColor = isDark ? Colors.green.shade900.withValues(alpha: 0.3) : Colors.green.shade50;
         statusIcon = Icons.check_circle;
         statusColor = Colors.green;
         break;
       case TaskStatus.expired:
-        cardColor = isDark ? Colors.red.shade900.withValues(alpha: 0.3) : Colors.red.shade50;
         statusIcon = Icons.cancel;
         statusColor = Colors.red;
         break;
       default:
-        cardColor = isDark ? Colors.blue.shade900.withValues(alpha: 0.3) : Colors.blue.shade50;
-        statusIcon = Icons.schedule;
-        statusColor = Colors.blue;
+        statusIcon = Icons.circle_outlined;
+        statusColor = Theme.of(context).colorScheme.primary;
     }
 
-    return Card(
+    return Container(
       margin: const EdgeInsets.only(bottom: 8),
-      color: cardColor,
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(12),
+      ),
       child: ListTile(
         leading: Icon(statusIcon, color: statusColor),
         title: Text(
@@ -311,7 +314,12 @@ class _DailyTasksScreenState extends State<DailyTasksScreen> {
           
           // Alarm kurulduysa, belirlenen saatte bildirim
           if (task.hasAlarm && task.alarmTime != null) {
-            await NotificationService.scheduleTaskReminder(task.id, task.title, task.alarmTime!);
+            await NotificationService.scheduleTaskReminder(
+              task.id, 
+              task.title, 
+              task.alarmTime!,
+              customMessage: task.customNotificationMessage,
+            );
           }
           
           setState(() {
@@ -483,11 +491,13 @@ class _AddTaskDialog extends StatefulWidget {
 class _AddTaskDialogState extends State<_AddTaskDialog> {
   final _titleController = TextEditingController();
   final _descriptionController = TextEditingController();
+  final _notificationMessageController = TextEditingController();
   int _selectedHours = 24;
   TaskDeadlineType _deadlineType = TaskDeadlineType.hours;
   DateTime? _selectedDateTime;
   bool _hasAlarm = false;
   DateTime? _alarmTime;
+  bool _showNotificationInput = false;
 
   @override
   Widget build(BuildContext context) {
@@ -574,6 +584,11 @@ class _AddTaskDialogState extends State<_AddTaskDialog> {
               onChanged: (value) {
                 setState(() {
                   _hasAlarm = value;
+                  if (!value) {
+                    _alarmTime = null;
+                    _showNotificationInput = false;
+                    _notificationMessageController.clear();
+                  }
                 });
               },
             ),
@@ -585,7 +600,26 @@ class _AddTaskDialogState extends State<_AddTaskDialog> {
                       : (widget.languageCode == 'tr' ? 'Alarm saati seç' : 'Select alarm time'),
                 ),
                 trailing: const Icon(Icons.access_time),
-                onTap: _selectAlarmTime,
+                onTap: () async {
+                  await _selectAlarmTime();
+                  if (_alarmTime != null) {
+                    setState(() {
+                      _showNotificationInput = true;
+                    });
+                  }
+                },
+              ),
+            if (_showNotificationInput) const SizedBox(height: 8),
+            if (_showNotificationInput)
+              TextField(
+                controller: _notificationMessageController,
+                decoration: InputDecoration(
+                  labelText: widget.languageCode == 'tr' ? 'Bildirim Mesajı' : 'Notification Message',
+                  hintText: widget.languageCode == 'tr' ? 'Örn: Yemek yapmayı sakın unutma Muhittin!' : 'e.g: Don\'t forget to cook!',
+                  border: const OutlineInputBorder(),
+                  prefixIcon: const Icon(Icons.notifications_active),
+                ),
+                maxLines: 2,
               ),
           ],
         ),
@@ -630,6 +664,7 @@ class _AddTaskDialogState extends State<_AddTaskDialog> {
       hasAlarm: _hasAlarm,
       alarmTime: _alarmTime,
       deadlineType: _deadlineType,
+      customNotificationMessage: _notificationMessageController.text.isEmpty ? null : _notificationMessageController.text,
     );
 
     widget.onTaskAdded(task);

@@ -212,10 +212,12 @@ class _CalendarScreenState extends State<CalendarScreen> {
                 ),
                 const SizedBox(height: 8),
                 ...notes.map((note) {
-                  final motivation = widget.motivations.cast<Routine?>().firstWhere(
-                    (m) => m?.id == note.routineId,
-                    orElse: () => null,
-                  );
+                  Routine? motivation;
+                  try {
+                    motivation = widget.motivations.firstWhere((m) => m.id == note.routineId);
+                  } catch (e) {
+                    motivation = null;
+                  }
                   
                   return Card(
                     child: ListTile(
@@ -228,7 +230,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                         ),
                       ),
                       title: Text(motivation?.title ?? (widget.languageCode == 'tr' ? 'Silinmiş Motivasyon' : 'Deleted Routine')),
-                      subtitle: Text(note.note),
+                      subtitle: Text(note.note ?? ''),
                       trailing: Text(_getMoodEmoji(note.mood), style: const TextStyle(fontSize: 20)),
                     ),
                   );

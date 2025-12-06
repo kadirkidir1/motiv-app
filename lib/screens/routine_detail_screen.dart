@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import '../models/routine.dart';
 import '../models/daily_note.dart';
+import '../models/routine_completion.dart';
 import '../services/language_service.dart';
 import '../services/database_service.dart';
+import '../services/tracking_service.dart';
 
 class MotivationDetailScreen extends StatefulWidget {
   final Routine motivation;
@@ -39,49 +41,28 @@ class _RoutineDetailScreenState extends State<MotivationDetailScreen> {
 
   Future<void> _loadRealData() async {
     try {
-      // Daily notes'ları database'den yükle
       final notes = await DatabaseService.getDailyNotes(widget.motivation.id);
+      final completions = await TrackingService.getRoutineCompletions(widget.motivation.id, days: 30);
       
-      // Progress verilerini daily notes'lardan oluştur
       final now = DateTime.now();
-      final Map<String, DailyNote> notesByDate = {};
-      final Map<String, int> minutesByDate = {};
-      
-      // Database'den minutesSpent değerlerini al
-      final db = await DatabaseService.database;
-      for (var note in notes) {
-        final dateKey = '${note.date.year}-${note.date.month}-${note.date.day}';
-        notesByDate[dateKey] = note;
-        
-        // minutesSpent'i database'den al
-        final result = await db.query(
-          'daily_notes',
-          columns: ['minutesSpent'],
-          where: 'id = ?',
-          whereArgs: [note.id],
-        );
-        if (result.isNotEmpty) {
-          minutesByDate[dateKey] = result.first['minutesSpent'] as int? ?? 0;
-        }
-      }
-      
-      // Son 30 günün progress verilerini oluştur
       final List<RoutineProgress> newProgressList = [];
+      
       for (int i = 29; i >= 0; i--) {
         final date = now.subtract(Duration(days: i));
-        final dateKey = '${date.year}-${date.month}-${date.day}';
-        final note = notesByDate[dateKey];
-        final minutes = minutesByDate[dateKey] ?? 0;
-        
-        final isCompleted = widget.motivation.isTimeBased 
-            ? (note != null && minutes > 0)
-            : (note != null && note.isCompleted);
+        RoutineCompletion? completion;
+        try {
+          completion = completions.firstWhere(
+            (c) => c.date.year == date.year && c.date.month == date.month && c.date.day == date.day,
+          );
+        } catch (e) {
+          completion = null;
+        }
         
         newProgressList.add(RoutineProgress(
           routineId: widget.motivation.id,
           date: date,
-          completed: isCompleted,
-          minutesSpent: minutes,
+          completed: completion != null,
+          minutesSpent: completion?.minutesSpent ?? 0,
         ));
       }
       
@@ -90,7 +71,6 @@ class _RoutineDetailScreenState extends State<MotivationDetailScreen> {
         progressList = newProgressList;
       });
     } catch (e) {
-      // Hata durumunda boş verilerle devam et
       setState(() {
         dailyNotes = [];
         progressList = _generateEmptyProgress();
@@ -407,7 +387,7 @@ class _RoutineDetailScreenState extends State<MotivationDetailScreen> {
                               ),
                             ),
                             title: Text(
-                              note.note,
+                              note.note ?? '',
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
                             ),
@@ -586,13 +566,18 @@ class _RoutineDetailScreenState extends State<MotivationDetailScreen> {
                   final errorText = AppLocalizations.get('error_occurred', _languageCode);
                   
                   try {
-                    final isCompleted = widget.motivation.isTimeBased 
-                        ? minutes >= widget.motivation.targetMinutes 
-                        : true;
-                    await DatabaseService.insertDailyNote(note, isCompleted, minutes);
-                    setState(() {
-                      dailyNotes.insert(0, note);
-                    });
+                    await TrackingService.completeRoutine(
+                      routineId: widget.motivation.id,
+                      date: DateTime.now(),
+                      minutesSpent: minutes,
+                      notes: noteController.text.isNotEmpty ? noteController.text : null,
+                    );
+                    if (noteController.text.isNotEmpty) {
+                      await DatabaseService.insertDailyNote(note);
+                      setState(() {
+                        dailyNotes.insert(0, note);
+                      });
+                    }
                     _loadRealData();
                     
                     navigator.pop();
@@ -652,22 +637,19 @@ class _RoutineDetailScreenState extends State<MotivationDetailScreen> {
                   ? (int.tryParse(minutesController.text) ?? widget.motivation.targetMinutes)
                   : 0;
               
-              final note = DailyNote(
-                id: DateTime.now().millisecondsSinceEpoch.toString(),
-                routineId: widget.motivation.id,
-                date: DateTime.now(),
-                note: 'Tamamlandı',
-                mood: 4, // İyi ruh hali
-              );
-              
               final navigator = Navigator.of(context);
               final messenger = ScaffoldMessenger.of(context);
               final markedCompleteText = AppLocalizations.get('marked_complete', _languageCode);
               final errorText = AppLocalizations.get('error_occurred', _languageCode);
               
               try {
-                await DatabaseService.insertDailyNote(note, true, minutes);
-                _loadRealData(); // Verileri yenile
+                await TrackingService.completeRoutine(
+                  routineId: widget.motivation.id,
+                  date: DateTime.now(),
+                  minutesSpent: minutes,
+                  notes: 'Tamamlandı',
+                );
+                _loadRealData();
                 
                 navigator.pop();
                 if (mounted) {

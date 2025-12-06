@@ -21,6 +21,7 @@ class DailyTask {
   final bool hasAlarm;
   final DateTime? alarmTime;
   final TaskDeadlineType deadlineType;
+  final String? customNotificationMessage;
 
   DailyTask({
     required this.id,
@@ -33,6 +34,7 @@ class DailyTask {
     this.hasAlarm = false,
     this.alarmTime,
     this.deadlineType = TaskDeadlineType.hours,
+    this.customNotificationMessage,
   });
 
   DailyTask copyWith({
@@ -46,6 +48,7 @@ class DailyTask {
     bool? hasAlarm,
     DateTime? alarmTime,
     TaskDeadlineType? deadlineType,
+    String? customNotificationMessage,
   }) {
     return DailyTask(
       id: id ?? this.id,
@@ -58,6 +61,7 @@ class DailyTask {
       hasAlarm: hasAlarm ?? this.hasAlarm,
       alarmTime: alarmTime ?? this.alarmTime,
       deadlineType: deadlineType ?? this.deadlineType,
+      customNotificationMessage: customNotificationMessage ?? this.customNotificationMessage,
     );
   }
 

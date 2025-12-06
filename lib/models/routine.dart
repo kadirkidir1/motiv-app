@@ -27,9 +27,11 @@ class Routine {
   final bool hasAlarm;
   final TimeOfDay? alarmTime;
   final DateTime createdAt;
-  final bool isCompleted;
+  final bool isCompleted;  // DEPRECATED: Kullanılmıyor, geriye dönük uyumluluk için
+  final bool isArchived;  // Rutin arşivlendi mi?
   final int targetMinutes;
   final bool isTimeBased;
+  final String? customNotificationMessage;
 
   Routine({
     required this.id,
@@ -40,9 +42,11 @@ class Routine {
     this.hasAlarm = false,
     this.alarmTime,
     required this.createdAt,
-    this.isCompleted = false,
+    @Deprecated('Use isArchived instead') this.isCompleted = false,
+    this.isArchived = false,
     this.targetMinutes = 0,
     this.isTimeBased = true,
+    this.customNotificationMessage,
   });
 
   Routine copyWith({
@@ -55,8 +59,10 @@ class Routine {
     TimeOfDay? alarmTime,
     DateTime? createdAt,
     bool? isCompleted,
+    bool? isArchived,
     int? targetMinutes,
     bool? isTimeBased,
+    String? customNotificationMessage,
   }) {
     return Routine(
       id: id ?? this.id,
@@ -68,8 +74,10 @@ class Routine {
       alarmTime: alarmTime ?? this.alarmTime,
       createdAt: createdAt ?? this.createdAt,
       isCompleted: isCompleted ?? this.isCompleted,
+      isArchived: isArchived ?? this.isArchived,
       targetMinutes: targetMinutes ?? this.targetMinutes,
       isTimeBased: isTimeBased ?? this.isTimeBased,
+      customNotificationMessage: customNotificationMessage ?? this.customNotificationMessage,
     );
   }
 }

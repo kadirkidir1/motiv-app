@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:async';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 
 class AdService {
@@ -69,19 +70,21 @@ class AdService {
   }
 
   static Future<RewardedAd?> loadRewardedAd() async {
-    RewardedAd? rewardedAd;
+    final completer = Completer<RewardedAd?>();
     
-    await RewardedAd.load(
+    RewardedAd.load(
       adUnitId: rewardedAdUnitId,
       request: const AdRequest(),
       rewardedAdLoadCallback: RewardedAdLoadCallback(
         onAdLoaded: (ad) {
-          rewardedAd = ad;
+          completer.complete(ad);
         },
-        onAdFailedToLoad: (error) {},
+        onAdFailedToLoad: (error) {
+          completer.complete(null);
+        },
       ),
     );
     
-    return rewardedAd;
+    return completer.future;
   }
 }

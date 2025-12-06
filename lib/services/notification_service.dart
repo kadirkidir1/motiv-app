@@ -389,7 +389,7 @@ class NotificationService {
     }
   }
 
-  static Future<void> scheduleTaskReminder(String taskId, String taskTitle, DateTime reminderTime) async {
+  static Future<void> scheduleTaskReminder(String taskId, String taskTitle, DateTime reminderTime, {String? customMessage}) async {
     try {
       await _checkInitialization();
 
@@ -398,8 +398,8 @@ class NotificationService {
 
       final delaySeconds = reminderTime.difference(now).inSeconds;
       final lang = await LanguageService.getLanguage();
-      final title = lang == 'tr' ? 'Görev Hatırlatıcısı ⏰' : 'Task Reminder ⏰';
-      final body = lang == 'tr' ? '$taskTitle - Yakında süresi dolacak!' : '$taskTitle - Time is running out!';
+      final title = customMessage ?? (lang == 'tr' ? 'Görev Hatırlatıcısı ⏰' : 'Task Reminder ⏰');
+      final body = customMessage != null ? '' : (lang == 'tr' ? '$taskTitle - Yakında süresi dolacak!' : '$taskTitle - Time is running out!');
 
       if (Platform.isAndroid) {
         const platform = MethodChannel('com.motivapp.motivapp/alarm');
@@ -486,7 +486,7 @@ class NotificationService {
     }
   }
 
-  static Future<void> scheduleMotivationReminder(String motivationId, String motivationTitle, TimeOfDay time, bool isTimeBased) async {
+  static Future<void> scheduleMotivationReminder(String motivationId, String motivationTitle, TimeOfDay time, bool isTimeBased, {String? customMessage}) async {
     try {
       await _checkInitialization();
 
@@ -500,10 +500,10 @@ class NotificationService {
       final delaySeconds = scheduledDate.difference(now).inSeconds;
       final lang = await LanguageService.getLanguage();
       
-      final title = '$motivationTitle \u23f0';
-      final body = isTimeBased
+      final title = customMessage ?? '$motivationTitle \u23f0';
+      final body = customMessage != null ? '' : (isTimeBased
           ? (lang == 'tr' ? 'Ka\u00e7 dakika harcad\u0131n\u0131z?' : 'How many minutes did you spend?')
-          : (lang == 'tr' ? 'Tamamlad\u0131n\u0131z m\u0131?' : 'Did you complete it?');
+          : (lang == 'tr' ? 'Tamamlad\u0131n\u0131z m\u0131?' : 'Did you complete it?'));
 
       if (Platform.isAndroid) {
         const platform = MethodChannel('com.motivapp.motivapp/alarm');

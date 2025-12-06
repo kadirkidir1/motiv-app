@@ -3,6 +3,7 @@ import '../models/routine.dart';
 import '../models/daily_note.dart';
 import '../services/database_service.dart';
 import '../services/language_service.dart';
+import '../services/tracking_service.dart';
 
 class DailyRecordScreen extends StatefulWidget {
   final Routine motivation;
@@ -45,9 +46,13 @@ class _DailyRecordScreenState extends State<DailyRecordScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(AppLocalizations.get('daily_record', _languageCode)),
-        backgroundColor: _getCategoryColor(widget.motivation.category),
-        foregroundColor: Colors.white,
+        title: Text(
+          AppLocalizations.get('daily_record', _languageCode),
+          style: const TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
@@ -388,14 +393,23 @@ class _DailyRecordScreenState extends State<DailyRecordScreen> {
       id: DateTime.now().millisecondsSinceEpoch.toString(),
       routineId: widget.motivation.id,
       date: DateTime.now(),
-      note: _noteController.text.trim(),
+      note: _noteController.text.trim().isNotEmpty ? _noteController.text.trim() : null,
       mood: selectedMood,
       tags: [],
-      isCompleted: completed,
     );
     
     try {
-      await DatabaseService.insertDailyNote(dailyNote, completed, minutesSpent);
+      if (_noteController.text.trim().isNotEmpty) {
+        await DatabaseService.insertDailyNote(dailyNote);
+      }
+      if (completed) {
+        await TrackingService.completeRoutine(
+          routineId: widget.motivation.id,
+          date: DateTime.now(),
+          minutesSpent: minutesSpent,
+          notes: _noteController.text.trim().isNotEmpty ? _noteController.text.trim() : null,
+        );
+      }
       
       if (mounted) {
         Navigator.pop(context);

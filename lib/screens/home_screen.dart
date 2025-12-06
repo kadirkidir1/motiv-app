@@ -72,9 +72,10 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: _currentIndex == 0 ? AppBar(
-        title: Text(AppLocalizations.get('dashboard', _languageCode)),
-        backgroundColor: Colors.green.shade300,
-        foregroundColor: Colors.white,
+        title: Text(
+          AppLocalizations.get('dashboard', _languageCode),
+          style: const TextStyle(fontSize: 34, fontWeight: FontWeight.bold),
+        ),
         actions: [
           PopupMenuButton<String>(
             icon: Row(
@@ -111,9 +112,10 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ],
       ) : _currentIndex == 1 ? AppBar(
-        title: Text(AppLocalizations.get('motivations', _languageCode)),
-        backgroundColor: Colors.green.shade300,
-        foregroundColor: Colors.white,
+        title: Text(
+          AppLocalizations.get('motivations', _languageCode),
+          style: const TextStyle(fontSize: 34, fontWeight: FontWeight.bold),
+        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.check_circle),
@@ -130,13 +132,15 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ],
       ) : _currentIndex == 2 ? AppBar(
-        title: Text(AppLocalizations.get('daily_tasks', _languageCode)),
-        backgroundColor: Colors.green.shade300,
-        foregroundColor: Colors.white,
+        title: Text(
+          AppLocalizations.get('daily_tasks', _languageCode),
+          style: const TextStyle(fontSize: 34, fontWeight: FontWeight.bold),
+        ),
       ) : AppBar(
-        title: Text(AppLocalizations.get('account', _languageCode)),
-        backgroundColor: Colors.green.shade300,
-        foregroundColor: Colors.white,
+        title: Text(
+          AppLocalizations.get('account', _languageCode),
+          style: const TextStyle(fontSize: 34, fontWeight: FontWeight.bold),
+        ),
       ),
       body: _getSelectedPage(),
       bottomNavigationBar: Column(
@@ -155,6 +159,11 @@ class _HomeScreenState extends State<HomeScreen> {
           });
         },
         type: BottomNavigationBarType.fixed,
+        elevation: 0,
+        selectedItemColor: Theme.of(context).colorScheme.primary,
+        unselectedItemColor: Colors.grey,
+        selectedLabelStyle: const TextStyle(fontWeight: FontWeight.w600),
+        showUnselectedLabels: true,
         items: [
           BottomNavigationBarItem(
             icon: const Icon(Icons.dashboard),
@@ -176,7 +185,7 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
         ],
       ),
-      floatingActionButton: _currentIndex == 1 ? FloatingActionButton(
+      floatingActionButton: _currentIndex == 1 ? FloatingActionButton.extended(
         heroTag: "add_motivation",
         onPressed: () async {
           final navigator = Navigator.of(context);
@@ -200,8 +209,9 @@ class _HomeScreenState extends State<HomeScreen> {
             });
           }
         },
-        backgroundColor: Colors.blue.shade600,
-        child: const Icon(Icons.add, color: Colors.white),
+        backgroundColor: Theme.of(context).colorScheme.primary,
+        icon: const Icon(Icons.add),
+        label: Text(AppLocalizations.get('add_motivation', _languageCode)),
       ) : null,
     );
   }
@@ -253,14 +263,18 @@ class _HomeScreenState extends State<HomeScreen> {
     final groupedMotivations = _groupMotivationsByCategory();
     
     return ListView.builder(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       itemCount: groupedMotivations.length,
       itemBuilder: (context, index) {
         final category = groupedMotivations.keys.elementAt(index);
         final categoryMotivations = groupedMotivations[category]!;
         
-        return Card(
-          margin: const EdgeInsets.only(bottom: 12),
+        return Container(
+          margin: const EdgeInsets.only(bottom: 8),
+          decoration: BoxDecoration(
+            color: Theme.of(context).cardColor,
+            borderRadius: BorderRadius.circular(12),
+          ),
           child: ExpansionTile(
             leading: CircleAvatar(
               backgroundColor: _getCategoryColor(category),
@@ -389,13 +403,13 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _moveToCompleted(int index) async {
     final motivation = motivations[index];
-    final completedMotivation = motivation.copyWith(isCompleted: true);
+    final archivedMotivation = motivation.copyWith(isArchived: true);
     
     try {
-      await DatabaseService.updateRoutine(completedMotivation);
+      await DatabaseService.updateRoutine(archivedMotivation);
       setState(() {
         motivations.removeAt(index);
-        completedRoutines.add(completedMotivation);
+        completedRoutines.add(archivedMotivation);
       });
       
       if (mounted) {

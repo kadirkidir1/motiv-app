@@ -20,12 +20,14 @@ class _AddRoutineScreenState extends State<AddRoutineScreen> {
   final _titleController = TextEditingController();
   final _descriptionController = TextEditingController();
   final _targetMinutesController = TextEditingController();
+  final _notificationMessageController = TextEditingController();
 
   RoutineCategory _selectedCategory = RoutineCategory.personal;
   RoutineFrequency _selectedFrequency = RoutineFrequency.daily;
   bool _hasAlarm = false;
   TimeOfDay? _alarmTime;
   bool _isTimeBased = true;
+  bool _showNotificationInput = false;
 
   RoutineCategory? _selectedCategoryFilter;
 
@@ -33,9 +35,10 @@ class _AddRoutineScreenState extends State<AddRoutineScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(AppLocalizations.get('add_motivation', widget.languageCode)),
-        backgroundColor: Colors.blue.shade600,
-        foregroundColor: Colors.white,
+        title: Text(
+          AppLocalizations.get('add_motivation', widget.languageCode),
+          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
+        ),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
@@ -155,13 +158,17 @@ class _AddRoutineScreenState extends State<AddRoutineScreen> {
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 3,
         childAspectRatio: 0.9,
-        crossAxisSpacing: 8,
-        mainAxisSpacing: 8,
+        crossAxisSpacing: 12,
+        mainAxisSpacing: 12,
       ),
       itemCount: filteredMotivations.length,
       itemBuilder: (context, index) {
         final motivation = filteredMotivations[index];
-        return Card(
+        return Container(
+          decoration: BoxDecoration(
+            color: Theme.of(context).cardColor,
+            borderRadius: BorderRadius.circular(12),
+          ),
           child: InkWell(
             onTap: () => _selectPredefinedMotivation(motivation),
             borderRadius: BorderRadius.circular(8),
@@ -289,7 +296,11 @@ class _AddRoutineScreenState extends State<AddRoutineScreen> {
             onChanged: (value) {
               setState(() {
                 _hasAlarm = value;
-                if (!value) _alarmTime = null;
+                if (!value) {
+                  _alarmTime = null;
+                  _showNotificationInput = false;
+                  _notificationMessageController.clear();
+                }
               });
             },
           ),
@@ -301,25 +312,39 @@ class _AddRoutineScreenState extends State<AddRoutineScreen> {
                     : AppLocalizations.get('select_alarm_time', widget.languageCode),
               ),
               trailing: const Icon(Icons.access_time),
-              onTap: _selectAlarmTime,
+              onTap: () async {
+                await _selectAlarmTime();
+                if (_alarmTime != null) {
+                  setState(() {
+                    _showNotificationInput = true;
+                  });
+                }
+              },
+            ),
+            if (_showNotificationInput) const SizedBox(height: 8),
+            if (_showNotificationInput) TextFormField(
+              controller: _notificationMessageController,
+              decoration: InputDecoration(
+                labelText: widget.languageCode == 'tr' ? 'Bildirim Mesajı' : 'Notification Message',
+                hintText: widget.languageCode == 'tr' ? 'Örn: Yemek yapmayı sakın unutma Muhittin!' : 'e.g: Don\'t forget to cook!',
+                border: const OutlineInputBorder(),
+                prefixIcon: const Icon(Icons.notifications_active),
+              ),
+              maxLines: 2,
             ),
           ],
           const SizedBox(height: 24),
           SizedBox(
             width: double.infinity,
-            height: 50,
             child: ElevatedButton(
               onPressed: _saveCustomMotivation,
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.blue.shade600,
+                backgroundColor: Theme.of(context).colorScheme.primary,
+                foregroundColor: Colors.white,
               ),
               child: Text(
                 AppLocalizations.get('save_motivation', widget.languageCode),
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.white,
-                ),
+                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
               ),
             ),
           ),
@@ -356,6 +381,7 @@ class _AddRoutineScreenState extends State<AddRoutineScreen> {
         createdAt: DateTime.now(),
         targetMinutes: _isTimeBased ? (int.tryParse(_targetMinutesController.text) ?? 0) : 0,
         isTimeBased: _isTimeBased,
+        customNotificationMessage: _notificationMessageController.text.isEmpty ? null : _notificationMessageController.text,
       );
       
       // Alarm kurulmuşsa bildirim ayarla
@@ -365,6 +391,7 @@ class _AddRoutineScreenState extends State<AddRoutineScreen> {
           motivation.title,
           _alarmTime!,
           _isTimeBased,
+          customMessage: motivation.customNotificationMessage,
         );
       }
       
