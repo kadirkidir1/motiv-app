@@ -52,5 +52,22 @@
 		<string>fetch</string>
 		<string>remote-notification</string>
 	</array>
+	<key>NSUserNotificationsUsageDescription</key>
+	<string>Bu uygulama motivasyon hatırlatmaları göndermek için bildirim izni gerektirir.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Profil fotoğrafı çekmek için kamera erişimi gereklidir.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Profil fotoğrafı seçmek için fotoğraf kütüphanesi erişimi gereklidir.</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>motivapp.deeplink</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>motivapp</string>
+			</array>
+		</dict>
+	</array>
 </dict>
 </plist>

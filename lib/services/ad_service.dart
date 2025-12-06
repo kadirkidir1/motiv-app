@@ -1,14 +1,14 @@
 import 'dart:io';
 import 'dart:async';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
+import '../config/env_config.dart';
 
 class AdService {
   static String get bannerAdUnitId {
     if (Platform.isAndroid) {
-      return 'ca-app-pub-9382614319631087/2695709461';
+      return EnvConfig.adMobAndroidBanner;
     } else if (Platform.isIOS) {
-      // Test ID - Gerçek ID ile değiştir
-      return 'ca-app-pub-3940256099942544/2934735716';
+      return EnvConfig.adMobIosBanner;
     }
     throw UnsupportedError('Unsupported platform');
   }
@@ -26,10 +26,9 @@ class AdService {
 
   static String get rewardedAdUnitId {
     if (Platform.isAndroid) {
-      return 'ca-app-pub-9382614319631087/5486637725';
+      return EnvConfig.adMobAndroidRewarded;
     } else if (Platform.isIOS) {
-      // Test ID - Gerçek ID ile değiştir
-      return 'ca-app-pub-3940256099942544/1712485313';
+      return EnvConfig.adMobIosRewarded;
     }
     throw UnsupportedError('Unsupported platform');
   }

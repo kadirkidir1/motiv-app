@@ -1,9 +1,10 @@
 import 'package:purchases_flutter/purchases_flutter.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../config/env_config.dart';
 
 class RevenueCatService {
   static final _supabase = Supabase.instance.client;
-  static const _apiKey = 'goog_VFcTaeVDnKvcmFgmYLCCFcewaGx';
+  static const _apiKey = EnvConfig.revenueCatApiKey;
 
   static Future<void> initialize() async {
     if (_apiKey == 'YOUR_REVENUECAT_API_KEY') {
